@@ -1,0 +1,8 @@
+filegroup(
+    name = "sources",
+    srcs = glob([
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "*.json",
+    ], allow_empty = True),
+)

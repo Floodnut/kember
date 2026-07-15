@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kember-warm-e2e
+  labels:
+    kember.dev/e2e-stage: pool
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: warm-worker
+  namespace: kember-warm-e2e
+  labels:
+    kember.dev/e2e-stage: pool
+---
+apiVersion: kember.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: echo-warm
+  namespace: kember-warm-e2e
+  labels:
+    kember.dev/e2e-stage: pool
+spec:
+  execution:
+    mode: exec
+    commandTemplate:
+      - /bin/sh
+      - -c
+      - 'sleep 3; test "$1" = "s3://security-artifacts/project-a/source.tar.gz"'
+      - kember-task
+      - "{{input.ref}}"
+  lifecycle:
+    profile: warmLease
+    maxTasksPerWorker: 1
+  capacity:
+    policy: fixed
+    size: 2
+  template:
+    image: busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
+    command: ["/bin/sh", "-c"]
+    args: ["touch /tmp/kember-ready; exec sleep 3600"]
+    serviceAccountName: warm-worker
+    inputPolicy:
+      allowedPrefixes: ["s3://security-artifacts/project-a/"]
+    resources:
+      requests:
+        cpu: "10m"
+        memory: "16Mi"
+      limits:
+        cpu: "50m"
+        memory: "32Mi"
+    readinessProbe:
+      exec:
+        command: ["/bin/sh", "-c", "test -f /tmp/kember-ready"]
+      periodSeconds: 1
+  taskPolicy:
+    queueTimeoutSeconds: 30
+    timeoutSeconds: 60
+    retentionSeconds: 60
+---
+apiVersion: kember.dev/v1alpha1
+kind: TaskRun
+metadata:
+  name: echo-warm
+  namespace: kember-warm-e2e
+  labels:
+    kember.dev/e2e-stage: task
+spec:
+  workerPoolRef:
+    name: echo-warm
+  input:
+    ref: s3://security-artifacts/project-a/source.tar.gz
+  timeoutSeconds: 30

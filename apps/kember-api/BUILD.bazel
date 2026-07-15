@@ -1,0 +1,7 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary")
+
+kt_jvm_binary(
+    name = "kember-api",
+    srcs = glob(["src/main/kotlin/**/*.kt"]),
+    main_class = "dev.kember.api.MainKt",
+)

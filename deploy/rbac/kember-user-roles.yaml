@@ -1,0 +1,32 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kember-platform-admin
+rules:
+  - apiGroups: ["kember.dev"]
+    resources: ["workerpools", "taskruns"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["kember.dev"]
+    resources: ["taskruns/status"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kember-taskrun-developer
+rules:
+  - apiGroups: ["kember.dev"]
+    resources: ["taskruns"]
+    verbs: ["get", "list", "watch", "create", "patch"]
+  - apiGroups: ["kember.dev"]
+    resources: ["taskruns/status"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kember-auditor
+rules:
+  - apiGroups: ["kember.dev"]
+    resources: ["workerpools", "taskruns", "taskruns/status"]
+    verbs: ["get", "list", "watch"]

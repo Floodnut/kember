@@ -1,0 +1,60 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: taskruns.kember.dev
+spec:
+  group: kember.dev
+  names:
+    kind: TaskRun
+    listKind: TaskRunList
+    plural: taskruns
+    shortNames:
+      - tr
+    singular: taskrun
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - workerPoolRef
+                - input
+                - timeoutSeconds
+              properties:
+                workerPoolRef:
+                  type: object
+                  required: [name]
+                  properties:
+                    name:
+                      type: string
+                      minLength: 1
+                parameters:
+                  type: object
+                  additionalProperties:
+                    type: string
+                input:
+                  type: object
+                  required: [ref]
+                  properties:
+                    ref:
+                      type: string
+                      minLength: 1
+                timeoutSeconds:
+                  type: integer
+                  format: int64
+                  minimum: 1
+                cancel:
+                  type: boolean
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true

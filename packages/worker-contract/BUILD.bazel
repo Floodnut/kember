@@ -1,0 +1,7 @@
+filegroup(
+    name = "schemas",
+    srcs = glob(
+        ["**/*.md", "**/*.yaml", "**/*.yml"],
+        allow_empty = True,
+    ),
+)
