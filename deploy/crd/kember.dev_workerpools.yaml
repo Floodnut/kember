@@ -146,4 +146,54 @@ spec:
                   message: job requires runToCompletion; exec requires warmLease, capacity, and commandTemplate
             status:
               type: object
-              x-kubernetes-preserve-unknown-fields: true
+              properties:
+                observedGeneration:
+                  type: integer
+                  format: int64
+                capacity:
+                  type: object
+                  required: [desired, starting, ready, leased, terminating]
+                  properties:
+                    desired:
+                      type: integer
+                      format: int32
+                      minimum: 0
+                    starting:
+                      type: integer
+                      format: int32
+                      minimum: 0
+                    ready:
+                      type: integer
+                      format: int32
+                      minimum: 0
+                    leased:
+                      type: integer
+                      format: int32
+                      minimum: 0
+                    terminating:
+                      type: integer
+                      format: int32
+                      minimum: 0
+                conditions:
+                  type: array
+                  x-kubernetes-list-type: map
+                  x-kubernetes-list-map-keys: [type]
+                  items:
+                    type: object
+                    required: [lastTransitionTime, message, reason, status, type]
+                    properties:
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      message:
+                        type: string
+                      observedGeneration:
+                        type: integer
+                        format: int64
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                        enum: ["True", "False", "Unknown"]
+                      type:
+                        type: string

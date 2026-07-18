@@ -6,6 +6,20 @@ OPERATOR_IMAGE="${OPERATOR_IMAGE:-kember-operator:e2e}"
 WORKER_IMAGE="busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662"
 CACHE_DIR="${PWD}/.cache/e2e"
 
+wait_pool_status_ready() {
+  local generation status
+  generation="$(kubectl -n kember-warm-e2e get workerpool echo-warm -o jsonpath='{.metadata.generation}')"
+  for _ in $(seq 1 120); do
+    status="$(kubectl -n kember-warm-e2e get workerpool echo-warm -o jsonpath='{.status.observedGeneration}{" "}{.status.capacity.desired}{" "}{.status.capacity.starting}{" "}{.status.capacity.ready}{" "}{.status.capacity.leased}{" "}{.status.capacity.terminating}{" "}{.status.conditions[?(@.type=="Ready")].status}{" "}{.status.conditions[?(@.type=="Progressing")].status}{" "}{.status.conditions[?(@.type=="Degraded")].status}' 2>/dev/null || true)"
+    if [[ "${status}" == "${generation} 2 0 2 0 0 True False False" ]]; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "WorkerPool status did not converge: ${status}" >&2
+  return 1
+}
+
 mkdir -p "${CACHE_DIR}"
 GOARCH="$(docker version --format '{{.Server.Arch}}')"
 GOWORK=off GOCACHE="${PWD}/.cache/go-build" GOOS=linux GOARCH="${GOARCH}" CGO_ENABLED=0 \
@@ -38,6 +52,7 @@ for _ in $(seq 1 120); do
   sleep 1
 done
 [[ "${ready}" == "2" ]]
+wait_pool_status_ready
 
 kubectl apply -l kember.dev/e2e-stage=task -f deploy/samples/e2e-warm-single-use.yaml
 
@@ -77,7 +92,11 @@ for _ in $(seq 1 120); do
   sleep 1
 done
 [[ "${ready}" == "2" ]]
+wait_pool_status_ready
 [[ "$(kubectl -n kember-warm-e2e get jobs -l kember.dev/taskrun-uid -o name)" == "" ]]
 [[ "$(kubectl -n kember-warm-e2e get leases -l "kember.dev/taskrun-uid=${task_uid}" -o name)" == "" ]]
+
+kubectl -n kember-warm-e2e patch workerpool echo-warm --type merge -p '{"spec":{"template":{"readinessProbe":{"periodSeconds":2}}}}'
+wait_pool_status_ready
 
 kubectl -n kember-warm-e2e get workerpool,pods,taskrun,lease

@@ -10,7 +10,7 @@ metadata:
   name: kember-operator
 rules:
   - apiGroups: ["kember.dev"]
-    resources: ["taskruns", "taskruns/status", "workerpools"]
+    resources: ["taskruns", "taskruns/status", "workerpools", "workerpools/status"]
     verbs: ["get", "list", "watch", "patch", "update"]
   - apiGroups: ["batch"]
     resources: ["jobs"]

@@ -3,12 +3,14 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strconv"
 	"time"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -42,6 +44,13 @@ func (r *WorkerPoolReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 	if err := validateWarmLeasePool(pool); err != nil {
+		capacity := kemberv1.WorkerPoolCapacityStatus{}
+		if pool.Spec.Capacity != nil {
+			capacity.Desired = pool.Spec.Capacity.Size
+		}
+		if statusErr := r.updateStatus(ctx, pool, capacity, false, err); statusErr != nil {
+			return ctrl.Result{}, statusErr
+		}
 		return ctrl.Result{}, err
 	}
 
@@ -50,6 +59,8 @@ func (r *WorkerPoolReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 		return ctrl.Result{}, err
 	}
 	managed := 0
+	capacity := kemberv1.WorkerPoolCapacityStatus{Desired: pool.Spec.Capacity.Size}
+	rolloutPending := false
 	available := make([]*corev1.Pod, 0, len(pods.Items))
 	for i := range pods.Items {
 		pod := &pods.Items[i]
@@ -58,6 +69,7 @@ func (r *WorkerPoolReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 			return ctrl.Result{}, err
 		}
 		if !pod.DeletionTimestamp.IsZero() {
+			capacity.Terminating++
 			continue
 		}
 		if pod.Labels[workerPoolGenerationLabel] != strconv.FormatInt(pool.Generation, 10) || pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
@@ -65,14 +77,24 @@ func (r *WorkerPoolReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 				if err := r.Delete(ctx, pod); err != nil && !apierrors.IsNotFound(err) {
 					return ctrl.Result{}, err
 				}
+				capacity.Terminating++
 			} else if leased {
 				managed++
+				capacity.Leased++
+				rolloutPending = true
 			}
 			continue
 		}
 		managed++
-		if !leased {
+		if leased {
+			capacity.Leased++
+		} else {
 			available = append(available, pod)
+			if podReady(pod) {
+				capacity.Ready++
+			} else {
+				capacity.Starting++
+			}
 		}
 	}
 
@@ -83,6 +105,12 @@ func (r *WorkerPoolReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 		if err := r.Delete(ctx, pod); err != nil && !apierrors.IsNotFound(err) {
 			return ctrl.Result{}, err
 		}
+		if podReady(pod) {
+			capacity.Ready--
+		} else {
+			capacity.Starting--
+		}
+		capacity.Terminating++
 		managed--
 	}
 	if managed < size {
@@ -93,9 +121,57 @@ func (r *WorkerPoolReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 		if err := r.Create(ctx, pod); err != nil {
 			return ctrl.Result{}, err
 		}
+		capacity.Starting++
+		if err := r.updateStatus(ctx, pool, capacity, rolloutPending, nil); err != nil {
+			return ctrl.Result{}, err
+		}
 		return ctrl.Result{Requeue: true}, nil
 	}
+	if err := r.updateStatus(ctx, pool, capacity, rolloutPending, nil); err != nil {
+		return ctrl.Result{}, err
+	}
 	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+}
+
+func (r *WorkerPoolReconciler) updateStatus(ctx context.Context, pool *kemberv1.WorkerPool, capacity kemberv1.WorkerPoolCapacityStatus, rolloutPending bool, reconcileErr error) error {
+	before := pool.Status
+	before.Conditions = append([]metav1.Condition(nil), pool.Status.Conditions...)
+	pool.Status.ObservedGeneration = pool.Generation
+	pool.Status.Capacity = capacity
+
+	degraded := reconcileErr != nil
+	stable := !rolloutPending && capacity.Starting == 0 && capacity.Terminating == 0 && capacity.Ready+capacity.Leased == capacity.Desired
+	message := capacityMessage(capacity)
+	if rolloutPending {
+		message += "; outdated leased workers remain"
+	}
+	if degraded {
+		setPoolCondition(&pool.Status.Conditions, pool.Generation, "Ready", false, "CapacityReady", "ReconciliationFailed", reconcileErr.Error())
+		setPoolCondition(&pool.Status.Conditions, pool.Generation, "Progressing", false, "ReconcilingCapacity", "ReconciliationBlocked", reconcileErr.Error())
+		setPoolCondition(&pool.Status.Conditions, pool.Generation, "Degraded", true, "InvalidSpec", "AsExpected", reconcileErr.Error())
+	} else {
+		setPoolCondition(&pool.Status.Conditions, pool.Generation, "Ready", stable, "CapacityReady", "CapacityNotReady", message)
+		setPoolCondition(&pool.Status.Conditions, pool.Generation, "Progressing", !stable, "ReconcilingCapacity", "CapacityStable", message)
+		setPoolCondition(&pool.Status.Conditions, pool.Generation, "Degraded", false, "InvalidSpec", "AsExpected", "worker pool reconciliation is healthy")
+	}
+	if reflect.DeepEqual(before, pool.Status) {
+		return nil
+	}
+	return r.Status().Update(ctx, pool)
+}
+
+func setPoolCondition(conditions *[]metav1.Condition, generation int64, conditionType string, value bool, trueReason, falseReason, message string) {
+	status := metav1.ConditionFalse
+	reason := falseReason
+	if value {
+		status = metav1.ConditionTrue
+		reason = trueReason
+	}
+	apimeta.SetStatusCondition(conditions, metav1.Condition{Type: conditionType, Status: status, ObservedGeneration: generation, Reason: reason, Message: message})
+}
+
+func capacityMessage(capacity kemberv1.WorkerPoolCapacityStatus) string {
+	return fmt.Sprintf("desired=%d starting=%d ready=%d leased=%d terminating=%d", capacity.Desired, capacity.Starting, capacity.Ready, capacity.Leased, capacity.Terminating)
 }
 
 func (r *WorkerPoolReconciler) podHasLease(ctx context.Context, pod *corev1.Pod) (bool, error) {

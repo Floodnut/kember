@@ -87,7 +87,24 @@ type TaskPolicySpec struct {
 type WorkerPool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              WorkerPoolSpec `json:"spec"`
+	Spec              WorkerPoolSpec   `json:"spec"`
+	Status            WorkerPoolStatus `json:"status,omitempty"`
+}
+
+type WorkerPoolStatus struct {
+	ObservedGeneration int64                    `json:"observedGeneration,omitempty"`
+	Capacity           WorkerPoolCapacityStatus `json:"capacity,omitempty"`
+	Conditions         []metav1.Condition       `json:"conditions,omitempty"`
+}
+
+// WorkerPoolCapacityStatus reports observed workers. Terminating workers are
+// outside desired capacity and are not included in Starting, Ready, or Leased.
+type WorkerPoolCapacityStatus struct {
+	Desired     int32 `json:"desired"`
+	Starting    int32 `json:"starting"`
+	Ready       int32 `json:"ready"`
+	Leased      int32 `json:"leased"`
+	Terminating int32 `json:"terminating"`
 }
 
 // +kubebuilder:object:root=true
