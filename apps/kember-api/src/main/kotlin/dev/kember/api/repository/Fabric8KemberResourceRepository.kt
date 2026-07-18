@@ -8,6 +8,7 @@ import dev.kember.api.model.WorkerPoolCapacityView
 import dev.kember.api.model.WorkerPoolView
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource
 import io.fabric8.kubernetes.client.KubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.base.ResourceDefinitionContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -17,7 +18,7 @@ class Fabric8KemberResourceRepository(
     private val ioDispatcher: CoroutineDispatcher,
 ) : KemberResourceRepository {
     override suspend fun listWorkerPools(cluster: ClusterId, namespace: String): List<WorkerPoolView> =
-        withContext(ioDispatcher) {
+        kubernetesCall {
             client.genericKubernetesResources(WORKER_POOLS)
                 .inNamespace(namespace)
                 .list()
@@ -26,7 +27,7 @@ class Fabric8KemberResourceRepository(
         }
 
     override suspend fun getWorkerPool(ref: ResourceRef): WorkerPoolView? =
-        withContext(ioDispatcher) {
+        kubernetesCall {
             client.genericKubernetesResources(WORKER_POOLS)
                 .inNamespace(ref.namespace)
                 .withName(ref.name)
@@ -35,7 +36,7 @@ class Fabric8KemberResourceRepository(
         }
 
     override suspend fun listTaskRuns(cluster: ClusterId, namespace: String): List<TaskRunView> =
-        withContext(ioDispatcher) {
+        kubernetesCall {
             client.genericKubernetesResources(TASK_RUNS)
                 .inNamespace(namespace)
                 .list()
@@ -44,13 +45,21 @@ class Fabric8KemberResourceRepository(
         }
 
     override suspend fun getTaskRun(ref: ResourceRef): TaskRunView? =
-        withContext(ioDispatcher) {
+        kubernetesCall {
             client.genericKubernetesResources(TASK_RUNS)
                 .inNamespace(ref.namespace)
                 .withName(ref.name)
                 .get()
                 ?.toTaskRun(ref.cluster, ref.namespace)
         }
+
+    private suspend fun <T> kubernetesCall(block: () -> T): T = withContext(ioDispatcher) {
+        try {
+            block()
+        } catch (error: KubernetesClientException) {
+            throw RepositoryUnavailable(error)
+        }
+    }
 }
 
 private fun GenericKubernetesResource.toWorkerPool(cluster: ClusterId, namespace: String) = WorkerPoolView(

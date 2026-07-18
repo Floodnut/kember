@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 
@@ -75,6 +76,21 @@ class Fabric8KemberResourceRepositoryTest {
         assertNull(repository.getTaskRun(ResourceRef(ClusterId("local"), "team-a", "missing")))
         client.close()
         Unit
+    }
+
+    @Test
+    fun wrapsKubernetesApiFailures() {
+        server.expect().get()
+            .withPath("/apis/kember.openflood.org/v1alpha1/namespaces/team-a/workerpools")
+            .andReturn(500, "boom")
+            .once()
+        val client = server.createClient()
+        val repository = Fabric8KemberResourceRepository(client, Dispatchers.IO)
+
+        assertThrows(RepositoryUnavailable::class.java) {
+            runBlocking { repository.listWorkerPools(ClusterId("local"), "team-a") }
+        }
+        client.close()
     }
 }
 

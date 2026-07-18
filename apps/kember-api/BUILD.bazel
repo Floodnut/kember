@@ -5,6 +5,10 @@ kt_jvm_library(
     srcs = glob(["src/main/kotlin/**/*.kt"]),
     deps = [
         "@kember_maven//:io_fabric8_kubernetes_client",
+        "@kember_maven//:io_ktor_ktor_serialization_jackson_jvm",
+        "@kember_maven//:io_ktor_ktor_server_content_negotiation_jvm",
+        "@kember_maven//:io_ktor_ktor_server_core_jvm",
+        "@kember_maven//:io_ktor_ktor_server_netty_jvm",
         "@kember_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
     ],
     visibility = ["//visibility:private"],
@@ -48,5 +52,27 @@ kt_jvm_test(
         "@kember_maven//:io_fabric8_kubernetes_server_mock",
         "@kember_maven//:junit_junit",
         "@kember_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
+    ],
+)
+
+kt_jvm_test(
+    name = "http_contract_test",
+    srcs = ["src/test/kotlin/dev/kember/api/http/ApiModuleTest.kt"],
+    test_class = "dev.kember.api.http.ApiModuleTest",
+    deps = [
+        ":api_core",
+        "@kember_maven//:io_ktor_ktor_client_core_jvm",
+        "@kember_maven//:io_ktor_ktor_server_test_host_jvm",
+        "@kember_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "configuration_test",
+    srcs = ["src/test/kotlin/dev/kember/api/ConfigurationTest.kt"],
+    test_class = "dev.kember.api.ConfigurationTest",
+    deps = [
+        ":api_core",
+        "@kember_maven//:junit_junit",
     ],
 )

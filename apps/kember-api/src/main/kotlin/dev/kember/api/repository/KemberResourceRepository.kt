@@ -11,3 +11,5 @@ interface KemberResourceRepository {
     suspend fun listTaskRuns(cluster: ClusterId, namespace: String): List<TaskRunView>
     suspend fun getTaskRun(ref: ResourceRef): TaskRunView?
 }
+
+class RepositoryUnavailable(cause: Throwable) : RuntimeException(cause)

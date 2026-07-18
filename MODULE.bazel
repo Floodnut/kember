@@ -23,6 +23,7 @@ maven.install(
     artifacts = [
         "io.fabric8:kubernetes-client:7.8.0",
         "io.fabric8:kubernetes-server-mock:7.8.0",
+        "io.ktor:ktor-client-core-jvm:3.5.1",
         "io.ktor:ktor-serialization-jackson-jvm:3.5.1",
         "io.ktor:ktor-server-content-negotiation-jvm:3.5.1",
         "io.ktor:ktor-server-core-jvm:3.5.1",

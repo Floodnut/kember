@@ -1,6 +1,6 @@
 {
   "lockFileVersion": 6,
-  "moduleFileHash": "d8f52626dc0a5ed5bdc358dac3c4bba94259c14cbcdd3d588bcea9fb3d8657cc",
+  "moduleFileHash": "5e97e5fe6dbd4f044b32bdb6583e60ea57aa960b51995b0be5eea8203afbd7e8",
   "flags": {
     "cmdRegistries": [
       "https://bcr.bazel.build/"
@@ -110,6 +110,7 @@
                 "artifacts": [
                   "io.fabric8:kubernetes-client:7.8.0",
                   "io.fabric8:kubernetes-server-mock:7.8.0",
+                  "io.ktor:ktor-client-core-jvm:3.5.1",
                   "io.ktor:ktor-serialization-jackson-jvm:3.5.1",
                   "io.ktor:ktor-server-content-negotiation-jvm:3.5.1",
                   "io.ktor:ktor-server-core-jvm:3.5.1",
