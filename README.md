@@ -65,6 +65,33 @@ The installer applies the namespace, CRDs, RBAC, and operator Deployment to the
 current kubectl context. It does not install a Helm chart or create a tenant
 namespace.
 
+For a quick lifecycle check after installation:
+
+```bash
+kubectl apply -f deploy/samples/e2e-success.yaml
+kubectl -n kember-e2e get taskrun echo -o wide
+kubectl -n kember-e2e describe taskrun echo
+```
+
+To request cancellation for a non-terminal TaskRun:
+
+```bash
+kubectl -n <namespace> patch taskrun <name> --type=merge \
+  -p '{"spec":{"cancel":true}}'
+```
+
+The operator exposes lifecycle metrics on port 8080:
+
+```bash
+kubectl -n kember-system port-forward deployment/kember-operator 18080:8080
+curl http://127.0.0.1:18080/metrics
+```
+
+The alpha metric families are `kember_workerpool_ready_workers`,
+`kember_workerpool_leased_workers`, `kember_taskrun_active_duration_seconds`,
+`kember_taskrun_total`, `kember_worker_termination_requests_total`, and
+`kember_taskrun_assignment_wait_seconds`.
+
 Run the kind-based lifecycle scenarios:
 
 ```bash
