@@ -1,0 +1,57 @@
+load("@rules_go//go:def.bzl", "go_test")
+load("@rules_go//proto:def.bzl", "go_proto_library")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@com_google_protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
+
+proto_library(
+    name = "plugin_proto",
+    srcs = ["plugin.proto"],
+    visibility = ["//visibility:public"],
+)
+
+go_proto_library(
+    name = "plugin_go_proto",
+    importpath = "github.com/Floodnut/kember/packages/worker-contract/gen/kember/plugin/v1",
+    proto = ":plugin_proto",
+    visibility = ["//visibility:public"],
+)
+
+java_proto_library(
+    name = "plugin_java_proto",
+    deps = [":plugin_proto"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "plugin_contract_test",
+    srcs = ["plugin_contract_test.go"],
+    data = [
+        "plugin.proto",
+        "//packages/worker-contract:plugin_testdata",
+    ],
+)
+
+kt_jvm_binary(
+    name = "plugin_kotlin_compatibility",
+    srcs = ["PluginProtoCompatibility.kt"],
+    main_class = "org.openflood.kember.plugin.v1.PluginProtoCompatibilityKt",
+    deps = [":plugin_java_proto"],
+)
+
+sh_test(
+    name = "plugin_kotlin_compatibility_test",
+    srcs = ["run_kotlin_compatibility_test.sh"],
+    data = [":plugin_kotlin_compatibility"],
+)
+
+go_test(
+    name = "plugin_go_compatibility_test",
+    srcs = ["plugin_generated_test.go"],
+    gotags = ["bazel"],
+    deps = [
+        ":plugin_go_proto",
+        "@org_golang_google_protobuf//proto",
+    ],
+)

@@ -1,0 +1,9 @@
+{
+  "response": {
+    "decision": "DENY",
+    "reasonCode": "INPUT_PREFIX_DENIED",
+    "reason": "The input reference is outside the allowed prefixes.",
+    "policyRevision": "test-policy-v1"
+  },
+  "expectedOutcome": "rejected"
+}

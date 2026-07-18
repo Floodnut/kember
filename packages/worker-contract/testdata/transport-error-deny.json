@@ -1,0 +1,5 @@
+{
+  "transportError": "plugin unavailable",
+  "failurePolicy": "deny",
+  "expectedOutcome": "rejected"
+}

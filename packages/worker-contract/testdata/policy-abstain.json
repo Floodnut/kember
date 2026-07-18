@@ -1,0 +1,9 @@
+{
+  "response": {
+    "decision": "ABSTAIN",
+    "reasonCode": "POLICY_NOT_APPLICABLE",
+    "reason": "The test policy does not own this decision.",
+    "policyRevision": "test-policy-v1"
+  },
+  "expectedOutcome": "delegate_to_core_policy"
+}

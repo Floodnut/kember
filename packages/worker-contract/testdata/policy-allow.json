@@ -1,0 +1,9 @@
+{
+  "response": {
+    "decision": "ALLOW",
+    "reasonCode": "POLICY_ALLOWED",
+    "reason": "The resolved task is allowed by the test policy.",
+    "policyRevision": "test-policy-v1"
+  },
+  "expectedOutcome": "continue"
+}

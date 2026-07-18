@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package kember.plugin.v1;
+
+option go_package = "github.com/Floodnut/kember/packages/worker-contract/gen/kember/plugin/v1;pluginv1";
+option java_multiple_files = true;
+option java_package = "org.openflood.kember.plugin.v1";
+
+// Plugin evaluates control-plane policy context before Kember creates a Job
+// or assigns a warm worker. It does not own Kubernetes resource lifecycle.
+service Plugin {
+  rpc PolicyDecision(PolicyRequest) returns (PolicyResponse);
+}
+
+message PolicyRequest {
+  string protocol_version = 1;
+  string request_id = 2;
+  int64 deadline_unix_millis = 3;
+  string caller_subject = 4;
+  string namespace = 5;
+  WorkerPoolSnapshot worker_pool = 6;
+  TaskRunSnapshot task_run = 7;
+  string image_digest = 8;
+}
+
+message WorkerPoolSnapshot {
+  string name = 1;
+  string execution_mode = 2;
+  string lifecycle_profile = 3;
+  repeated string allowed_input_prefixes = 4;
+  map<string, string> labels = 5;
+}
+
+message TaskRunSnapshot {
+  string name = 1;
+  string uid = 2;
+  string input_ref = 3;
+  map<string, string> parameters = 4;
+  string requested_by = 5;
+}
+
+enum PolicyDecisionValue {
+  POLICY_DECISION_UNSPECIFIED = 0;
+  POLICY_DECISION_ALLOW = 1;
+  POLICY_DECISION_DENY = 2;
+  POLICY_DECISION_ABSTAIN = 3;
+}
+
+message PolicyResponse {
+  PolicyDecisionValue decision = 1;
+  string reason_code = 2;
+  string reason = 3;
+  string policy_revision = 4;
+}

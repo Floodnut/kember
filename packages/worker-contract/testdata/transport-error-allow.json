@@ -1,0 +1,5 @@
+{
+  "transportError": "plugin unavailable",
+  "failurePolicy": "allow",
+  "expectedOutcome": "continue_with_audit"
+}
