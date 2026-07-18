@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -73,6 +74,67 @@ func TestResolveTemplateRejectsUnknownParameter(t *testing.T) {
 	taskRun := &kemberv1.TaskRun{Spec: kemberv1.TaskRunSpec{Parameters: map[string]string{"command": "sh"}, Input: kemberv1.TaskInput{Ref: "s3://security-artifacts/project-a/source.tar.gz"}, TimeoutSeconds: 60}}
 	if _, err := resolveTemplate(testWorkerPool(), taskRun); err == nil {
 		t.Fatal("resolveTemplate() succeeded for unknown parameter")
+	}
+}
+
+func TestResolveTemplateRejectsDynamicContractErrors(t *testing.T) {
+	tests := []struct {
+		name   string
+		modify func(*kemberv1.TaskRun)
+	}{
+		{
+			name: "non-canonical input URI",
+			modify: func(taskRun *kemberv1.TaskRun) {
+				taskRun.Spec.Input.Ref = "s3://security-artifacts/project-a/../source.tar.gz"
+			},
+		},
+		{
+			name: "parameter enum violation",
+			modify: func(taskRun *kemberv1.TaskRun) {
+				taskRun.Spec.Parameters = map[string]string{"severity": "LOW"}
+			},
+		},
+		{
+			name: "timeout exceeds policy",
+			modify: func(taskRun *kemberv1.TaskRun) {
+				taskRun.Spec.TimeoutSeconds = 121
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			taskRun := &kemberv1.TaskRun{Spec: kemberv1.TaskRunSpec{
+				Parameters:     map[string]string{"severity": "HIGH"},
+				Input:          kemberv1.TaskInput{Ref: "s3://security-artifacts/project-a/source.tar.gz"},
+				TimeoutSeconds: 60,
+			}}
+			test.modify(taskRun)
+			if _, err := resolveTemplate(testWorkerPool(), taskRun); err == nil {
+				t.Fatal("resolveTemplate() accepted an invalid dynamic contract")
+			}
+		})
+	}
+}
+
+func TestFinishDoesNotChangeTerminalTaskRun(t *testing.T) {
+	completed := kemberv1.NewPreciseTime(time.Date(2026, 7, 15, 12, 0, 5, 0, time.UTC))
+	taskRun := &kemberv1.TaskRun{Status: kemberv1.TaskRunStatus{
+		Phase:       kemberv1.TaskRunSucceeded,
+		CompletedAt: &completed,
+		Conditions: []metav1.Condition{{
+			Type:    "Completed",
+			Status:  metav1.ConditionTrue,
+			Reason:  "JobSucceeded",
+			Message: "Job completed successfully",
+		}},
+	}}
+	reconciler := &TaskRunReconciler{Now: func() time.Time { return completed.Time.Add(time.Hour) }}
+	if err := reconciler.finish(context.Background(), taskRun, kemberv1.TaskRunFailed, "WorkloadFailed", "must not overwrite terminal state"); err != nil {
+		t.Fatalf("finish() error = %v", err)
+	}
+	if taskRun.Status.Phase != kemberv1.TaskRunSucceeded || !taskRun.Status.CompletedAt.Time.Equal(completed.Time) || taskRun.Status.Conditions[0].Reason != "JobSucceeded" {
+		t.Fatalf("terminal TaskRun changed: %+v", taskRun.Status)
 	}
 }
 

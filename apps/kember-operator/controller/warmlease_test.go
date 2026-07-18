@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -77,6 +78,33 @@ func TestWorkerStillAvailableUsesLiveUID(t *testing.T) {
 	available, err = reconciler.workerStillAvailable(context.Background(), expected)
 	if err != nil || available {
 		t.Fatalf("workerStillAvailable() after delete = %t, %v, want false", available, err)
+	}
+}
+
+func TestCleanupWarmWorkerDeletesAssignedWorker(t *testing.T) {
+	scheme := runtime.NewScheme()
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: "tasks", UID: types.UID("worker-uid")}}
+	taskRun := &kemberv1.TaskRun{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "tasks"},
+		Status: kemberv1.TaskRunStatus{
+			Phase:     kemberv1.TaskRunSucceeded,
+			WorkerRef: &kemberv1.WorkerReference{Name: pod.Name, UID: string(pod.UID), LeaseName: "worker-lease"},
+		},
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(pod).Build()
+	reconciler := &TaskRunReconciler{
+		Client:    fakeClient,
+		APIReader: fakeClient,
+		Metrics:   NewLifecycleMetrics(prometheus.NewRegistry()),
+	}
+	if err := reconciler.cleanupWarmWorker(context.Background(), taskRun); err != nil {
+		t.Fatalf("cleanupWarmWorker() error = %v", err)
+	}
+	if err := fakeClient.Get(context.Background(), types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, &corev1.Pod{}); err == nil {
+		t.Fatal("cleanupWarmWorker() left assigned worker present")
 	}
 }
 
