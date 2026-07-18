@@ -49,6 +49,7 @@ spec:
                     ref:
                       type: string
                       minLength: 1
+                      pattern: '^[A-Za-z][A-Za-z0-9+.-]*://.+$'
                 timeoutSeconds:
                   type: integer
                   format: int64
@@ -57,4 +58,122 @@ spec:
                   type: boolean
             status:
               type: object
-              x-kubernetes-preserve-unknown-fields: true
+              properties:
+                phase:
+                  type: string
+                  enum: [Pending, Running, Succeeded, Failed, TimedOut, Rejected, Cancelled]
+                conditions:
+                  type: array
+                  x-kubernetes-list-type: map
+                  x-kubernetes-list-map-keys: [type]
+                  items:
+                    type: object
+                    required: [lastTransitionTime, message, reason, status, type]
+                    properties:
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      message:
+                        type: string
+                      observedGeneration:
+                        type: integer
+                        format: int64
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                        enum: ["True", "False", "Unknown"]
+                      type:
+                        type: string
+                resolvedTemplate:
+                  type: object
+                  required:
+                    - workerPoolUID
+                    - workerPoolGeneration
+                    - image
+                    - command
+                    - args
+                    - executionMode
+                    - lifecycleProfile
+                    - serviceAccountName
+                    - resources
+                    - activeDeadlineSeconds
+                    - queueTimeoutSeconds
+                    - ttlSecondsAfterFinished
+                    - templateHash
+                  properties:
+                    workerPoolUID:
+                      type: string
+                    workerPoolGeneration:
+                      type: integer
+                      format: int64
+                    image:
+                      type: string
+                    command:
+                      type: array
+                      items:
+                        type: string
+                    args:
+                      type: array
+                      items:
+                        type: string
+                    executionMode:
+                      type: string
+                      enum: [job, exec]
+                    lifecycleProfile:
+                      type: string
+                      enum: [runToCompletion, warmLease]
+                    execCommand:
+                      type: array
+                      items:
+                        type: string
+                    serviceAccountName:
+                      type: string
+                    resources:
+                      x-kubernetes-preserve-unknown-fields: true
+                    securityContext:
+                      x-kubernetes-preserve-unknown-fields: true
+                    activeDeadlineSeconds:
+                      type: integer
+                      format: int64
+                    queueTimeoutSeconds:
+                      type: integer
+                      format: int64
+                    ttlSecondsAfterFinished:
+                      type: integer
+                      format: int32
+                    templateHash:
+                      type: string
+                jobRef:
+                  type: object
+                  required: [name, uid]
+                  properties:
+                    name:
+                      type: string
+                    uid:
+                      type: string
+                workerRef:
+                  type: object
+                  required: [name, uid, leaseName]
+                  properties:
+                    name:
+                      type: string
+                    uid:
+                      type: string
+                    leaseName:
+                      type: string
+                dispatchedAt:
+                  type: string
+                  format: date-time
+                completedAt:
+                  type: string
+                  format: date-time
+                exitCode:
+                  type: integer
+                  format: int32
+                result:
+                  type: object
+                  required: [summary]
+                  properties:
+                    summary:
+                      type: string

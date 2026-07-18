@@ -49,6 +49,22 @@ go test ./...
 bazel test //...
 ```
 
+## Install on a cluster
+
+The alpha distribution uses plain Kubernetes manifests. Build an operator
+image, make it available to the target cluster, and install the control plane:
+
+```bash
+go build -o /tmp/kember-operator ./apps/kember-operator
+docker build -f deploy/operator/Dockerfile -t kember-operator:e2e /tmp
+kind load docker-image --name kember-e2e kember-operator:e2e
+KEMBER_OPERATOR_IMAGE=kember-operator:e2e ./deploy/install.sh
+```
+
+The installer applies the namespace, CRDs, RBAC, and operator Deployment to the
+current kubectl context. It does not install a Helm chart or create a tenant
+namespace.
+
 Run the kind-based lifecycle scenarios:
 
 ```bash
@@ -82,6 +98,12 @@ spec:
 
 See [`deploy/samples`](deploy/samples) for the corresponding `WorkerPool` and
 additional manifests.
+
+`WorkerPool` is platform-owned and defines the image, command, security
+context, input prefix policy, timeout policy, and worker capacity. `TaskRun` is
+namespaced and requests one execution without overriding that template. A
+TaskRun moves monotonically through `Pending` and `Running` to one terminal
+phase: `Succeeded`, `Failed`, `TimedOut`, `Rejected`, or `Cancelled`.
 
 ## Contributing
 

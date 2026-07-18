@@ -1,15 +1,20 @@
 # Deploy
 
-Kember CRD, RBAC, Helm chart, sample manifest를 이 디렉터리에 둔다.
+This directory contains the alpha CRDs, RBAC, operator Deployment, and sample
+resources. Helm is not part of the current distribution.
 
-초기 순서는 `operator/namespace.yaml`, `crd/`, `rbac/`, `operator/operator.yaml`, `samples/`다.
+The operator image must already be available to the target cluster. For a kind
+cluster, load it before installation:
 
-v0.1 설치 순서는 다음과 같다.
+```bash
+kind load docker-image --name kember-e2e kember-operator:e2e
+KEMBER_OPERATOR_IMAGE=kember-operator:e2e ./deploy/install.sh
+```
 
-1. `operator/namespace.yaml`로 `kember-system` namespace를 만든다.
-2. `crd/`의 `WorkerPool`, `TaskRun` CRD를 적용한다.
-3. `rbac/kember-operator.yaml`로 Operator service account와 controller 권한을 적용한다.
-4. `operator/operator.yaml`로 Operator Deployment를 적용한다.
-5. `rbac/kember-user-roles.yaml`의 ClusterRole을 조직 group 또는 service account에 namespace `RoleBinding`으로 연결한다.
+`install.sh` applies the namespace, CRDs, RBAC, and Deployment, then waits for
+the operator rollout. It uses the current kubectl context.
 
-`kember-platform-admin`만 `WorkerPool`을 변경할 수 있다. `kember-taskrun-developer`는 `TaskRun`만 만들고 취소 요청(`spec.cancel` patch)을 할 수 있다.
+After installation, apply a sample WorkerPool and TaskRun from
+`deploy/samples/`. `kember-platform-admin` is intended to manage WorkerPools;
+`kember-taskrun-developer` is intended to create TaskRuns and patch
+`spec.cancel`.
