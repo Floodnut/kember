@@ -23,6 +23,19 @@ Kember is an early alpha and its API is not stable yet.
 The current API group is `kember.dev/v1alpha1` and may change before the first
 public release.
 
+## Alpha support matrix
+
+| Execution mode | Lifecycle profile | Capacity | Status |
+|---|---|---|---|
+| `job` | `runToCompletion` | Kubernetes Job per TaskRun | Supported |
+| `exec` | `warmLease` | Fixed pool, one TaskRun per worker | Supported |
+| Any other mode/profile | — | — | Not supported |
+
+The alpha API guarantees one terminal TaskRun phase and an immutable resolved
+execution template after dispatch. It does not guarantee API compatibility,
+multi-cluster operation, Helm packaging, reusable workers, or production-scale
+performance.
+
 ## Repository layout
 
 ```text
