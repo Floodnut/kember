@@ -79,18 +79,34 @@ private fun GenericKubernetesResource.toWorkerPool(cluster: ClusterId, namespace
     conditions = conditions(),
 )
 
-private fun GenericKubernetesResource.toTaskRun(cluster: ClusterId, namespace: String) = TaskRunView(
-    cluster = cluster.value,
-    namespace = metadata.namespace ?: namespace,
-    name = metadata.name,
-    createdAt = metadata.creationTimestamp,
-    workerPool = string("spec", "workerPoolRef", "name") ?: "",
-    phase = string("status", "phase"),
-    assignedWorker = string("status", "workerRef", "name"),
-    dispatchedAt = string("status", "dispatchedAt"),
-    completedAt = string("status", "completedAt"),
-    conditions = conditions(),
-)
+private fun GenericKubernetesResource.toTaskRun(cluster: ClusterId, namespace: String): TaskRunView {
+    val createdAt = metadata.creationTimestamp
+    val dispatchedAt = string("status", "dispatchedAt")
+    val completedAt = string("status", "completedAt")
+    return TaskRunView(
+        cluster = cluster.value,
+        namespace = metadata.namespace ?: namespace,
+        name = metadata.name,
+        createdAt = createdAt,
+        workerPool = string("spec", "workerPoolRef", "name") ?: "",
+        phase = string("status", "phase"),
+        assignedWorker = string("status", "workerRef", "name"),
+        dispatchedAt = dispatchedAt,
+        completedAt = completedAt,
+        conditions = conditions(),
+        queueWaitSeconds = durationSeconds(createdAt, dispatchedAt),
+        activeDurationSeconds = durationSeconds(dispatchedAt, completedAt),
+    )
+}
+
+private fun durationSeconds(start: String?, end: String?): Double? {
+    if (start == null || end == null) return null
+    val duration = runCatching {
+        java.time.Duration.between(java.time.Instant.parse(start), java.time.Instant.parse(end))
+    }.getOrNull() ?: return null
+    if (duration.isNegative) return null
+    return duration.toNanos().toDouble() / 1_000_000_000.0
+}
 
 private fun GenericKubernetesResource.string(vararg path: Any): String? =
     get<Any>(*path)?.toString()

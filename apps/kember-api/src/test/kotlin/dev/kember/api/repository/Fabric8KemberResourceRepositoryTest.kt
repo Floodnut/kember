@@ -72,6 +72,8 @@ class Fabric8KemberResourceRepositoryTest {
         assertEquals("Running", taskRun.phase)
         assertEquals("scanner-abc", taskRun.assignedWorker)
         assertEquals("2026-07-18T01:00:01.123Z", taskRun.dispatchedAt)
+        assertEquals(1.123, taskRun.queueWaitSeconds!!, 0.000001)
+        assertEquals(2.377, taskRun.activeDurationSeconds!!, 0.000001)
         assertEquals("Assigned", taskRun.conditions.single().reason)
         assertNull(repository.getTaskRun(ResourceRef(ClusterId("local"), "team-a", "missing")))
         client.close()
@@ -91,6 +93,30 @@ class Fabric8KemberResourceRepositoryTest {
             runBlocking { repository.listWorkerPools(ClusterId("local"), "team-a") }
         }
         client.close()
+    }
+
+    @Test
+    fun mapsIncompleteAndReversedDurationsAsNull() = runBlocking {
+        server.expect().get()
+            .withPath("/apis/kember.openflood.org/v1alpha1/namespaces/team-a/taskruns/incomplete")
+            .andReturn(200, INCOMPLETE_TASK_RUN)
+            .once()
+        server.expect().get()
+            .withPath("/apis/kember.openflood.org/v1alpha1/namespaces/team-a/taskruns/reversed")
+            .andReturn(200, REVERSED_TASK_RUN)
+            .once()
+        val client = server.createClient()
+        val repository = Fabric8KemberResourceRepository(client, Dispatchers.IO)
+
+        val incomplete = repository.getTaskRun(ResourceRef(ClusterId("local"), "team-a", "incomplete"))!!
+        val reversed = repository.getTaskRun(ResourceRef(ClusterId("local"), "team-a", "reversed"))!!
+
+        assertEquals(1.0, incomplete.queueWaitSeconds!!, 0.000001)
+        assertNull(incomplete.activeDurationSeconds)
+        assertNull(reversed.queueWaitSeconds)
+        assertNull(reversed.activeDurationSeconds)
+        client.close()
+        Unit
     }
 }
 
@@ -121,7 +147,28 @@ private const val TASK_RUN = """
     "phase":"Running",
     "workerRef":{"name":"scanner-abc"},
     "dispatchedAt":"2026-07-18T01:00:01.123Z",
+    "completedAt":"2026-07-18T01:00:03.500Z",
     "conditions":[{"type":"Dispatched","status":"True","reason":"Assigned","message":"assigned","lastTransitionTime":"2026-07-18T01:00:01Z"}]
   }
+}
+"""
+
+private const val INCOMPLETE_TASK_RUN = """
+{
+  "apiVersion":"kember.openflood.org/v1alpha1",
+  "kind":"TaskRun",
+  "metadata":{"name":"incomplete","namespace":"team-a","creationTimestamp":"2026-07-18T01:00:00Z"},
+  "spec":{"workerPoolRef":{"name":"scanner"}},
+  "status":{"phase":"Running","dispatchedAt":"2026-07-18T01:00:01Z"}
+}
+"""
+
+private const val REVERSED_TASK_RUN = """
+{
+  "apiVersion":"kember.openflood.org/v1alpha1",
+  "kind":"TaskRun",
+  "metadata":{"name":"reversed","namespace":"team-a","creationTimestamp":"2026-07-18T01:00:02Z"},
+  "spec":{"workerPoolRef":{"name":"scanner"}},
+  "status":{"phase":"Succeeded","dispatchedAt":"2026-07-18T01:00:01Z","completedAt":"2026-07-18T01:00:00Z"}
 }
 """

@@ -47,6 +47,8 @@ class ApiModuleTest {
         val taskDetail = client.get("/api/v1/namespaces/team-a/task-runs/scan")
         assertEquals(HttpStatusCode.OK, taskDetail.status)
         assertTrue(taskDetail.bodyAsText().contains("\"name\":\"scan\""))
+        assertTrue(taskDetail.bodyAsText().contains("\"queueWaitSeconds\":1.123"))
+        assertTrue(taskDetail.bodyAsText().contains("\"activeDurationSeconds\":2.377"))
     }
 
     @Test
@@ -132,4 +134,6 @@ private fun workerPool(name: String) = WorkerPoolView(
 
 private fun taskRun(name: String) = TaskRunView(
     "local", "team-a", name, null, "scanner", "Pending", null, null, null, emptyList(),
+    queueWaitSeconds = 1.123,
+    activeDurationSeconds = 2.377,
 )

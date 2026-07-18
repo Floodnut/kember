@@ -47,4 +47,6 @@ data class TaskRunView(
     val dispatchedAt: String?,
     val completedAt: String?,
     val conditions: List<ConditionView>,
+    val queueWaitSeconds: Double? = null,
+    val activeDurationSeconds: Double? = null,
 )
