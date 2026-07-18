@@ -11,3 +11,7 @@
 **/__pycache__
 **/.idea
 **/*.iml
+
+# Local agent and design artifacts
+/.claude/
+/docs/
