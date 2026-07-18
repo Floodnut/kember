@@ -1,6 +1,7 @@
 package dev.kember.api
 
 import dev.kember.api.http.kemberApi
+import dev.kember.api.http.kemberUi
 import dev.kember.api.model.ClusterId
 import dev.kember.api.policy.SingleNamespaceAccessPolicy
 import dev.kember.api.repository.Fabric8KemberResourceRepository
@@ -22,6 +23,7 @@ fun main() {
         )
         embeddedServer(Netty, port = config.port) {
             kemberApi(queryService)
+            kemberUi(config.uiDirectory)
         }.start(wait = true)
     }
 }

@@ -75,3 +75,15 @@ kt_jvm_test(
         "@kember_maven//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "ui_module_test",
+    srcs = ["src/test/kotlin/dev/kember/api/http/UiModuleTest.kt"],
+    test_class = "dev.kember.api.http.UiModuleTest",
+    deps = [
+        ":api_core",
+        "@kember_maven//:io_ktor_ktor_client_core_jvm",
+        "@kember_maven//:io_ktor_ktor_server_test_host_jvm",
+        "@kember_maven//:junit_junit",
+    ],
+)

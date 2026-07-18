@@ -133,7 +133,17 @@ bazel build //apps/kember-api:kember-api
 bazel test //apps/kember-api:all
 ```
 
-`KEMBER_NAMESPACE` is required and `KEMBER_API_PORT` defaults to `8080`. The
+The API process also serves the read-only dashboard from the same origin. Build
+`//apps/kember-ui:build`, set `KEMBER_UI_DIR` to that `dist` directory, and open
+the port-forwarded Service:
+
+```bash
+kubectl -n kember-system port-forward service/kember-api 18081:8080
+open http://127.0.0.1:18081/
+```
+
+`KEMBER_NAMESPACE` and `KEMBER_UI_DIR` are required, and `KEMBER_API_PORT`
+defaults to `8080`. The
 plain manifests in `deploy/api` use `kember-system` and the API ServiceAccount
 has only `get` and `list` on Kember resources in that namespace. To select
 another namespace, change both the environment value and the namespaced

@@ -17,8 +17,23 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.nio.file.Files
 
 class ApiModuleTest {
+    @Test
+    fun servesApiAndSpaFromTheSameApplication() = testApplication {
+        val root = Files.createTempDirectory("kember-combined-test")
+        Files.writeString(root.resolve("index.html"), "<html>Kember UI</html>")
+        application {
+            kemberApi(service(FakeRepository()))
+            kemberUi(root)
+        }
+
+        assertEquals(HttpStatusCode.OK, client.get("/api/v1/namespaces").status)
+        assertTrue(client.get("/worker-pools/example").bodyAsText().contains("Kember UI"))
+        assertEquals(HttpStatusCode.NotFound, client.get("/api/v1/unknown").status)
+    }
+
     @Test
     fun servesHealthAndVisibleNamespaces() = testApplication {
         application { kemberApi(service(FakeRepository())) }

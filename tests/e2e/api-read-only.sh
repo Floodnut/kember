@@ -17,6 +17,9 @@ assert_static_contract() {
   rg -q 'name: KEMBER_NAMESPACE' deploy/api/api.yaml
   rg -q 'value: kember-system' deploy/api/api.yaml
   rg -q 'targetPort: 8080' deploy/api/api.yaml
+  rg -q 'name: KEMBER_UI_DIR' deploy/api/api.yaml
+  rg -q 'value: /app/ui' deploy/api/api.yaml
+  rg -q 'COPY --chown=nonroot:nonroot ui /app/ui' deploy/api/Dockerfile
 }
 
 assert_static_contract
@@ -29,8 +32,10 @@ bazel_args=()
 if [[ -n "${BAZEL_OUTPUT_USER_ROOT}" ]]; then
   bazel_args+=("--output_user_root=${BAZEL_OUTPUT_USER_ROOT}")
 fi
-"${BAZEL}" "${bazel_args[@]}" build //apps/kember-api:kember-api_deploy.jar
+"${BAZEL}" "${bazel_args[@]}" build //apps/kember-api:kember-api_deploy.jar //apps/kember-ui:build
 cp -fL bazel-bin/apps/kember-api/kember-api_deploy.jar "${CACHE_DIR}/kember-api_deploy.jar"
+mkdir -p "${CACHE_DIR}/ui"
+cp -fRL bazel-bin/apps/kember-ui/dist/. "${CACHE_DIR}/ui"
 docker build -t "${API_IMAGE}" -f deploy/api/Dockerfile "${CACHE_DIR}"
 if ! kind load docker-image --name "${CLUSTER_NAME}" "${API_IMAGE}"; then
   docker save "${API_IMAGE}" | docker exec -i "${CLUSTER_NAME}-control-plane" ctr -n k8s.io images import -
@@ -96,7 +101,11 @@ done
 namespaces="$(curl --fail --silent http://127.0.0.1:18081/api/v1/namespaces)"
 worker_pool="$(curl --fail --silent http://127.0.0.1:18081/api/v1/namespaces/kember-system/worker-pools/api-smoke)"
 task_run="$(curl --fail --silent http://127.0.0.1:18081/api/v1/namespaces/kember-system/task-runs/api-smoke)"
+ui_root="$(curl --fail --silent http://127.0.0.1:18081/)"
+ui_route="$(curl --fail --silent http://127.0.0.1:18081/task-runs/api-smoke)"
 
 [[ "${namespaces}" == *'"cluster":"local"'* && "${namespaces}" == *'"name":"kember-system"'* ]]
 [[ "${worker_pool}" == *'"namespace":"kember-system"'* && "${worker_pool}" == *'"name":"api-smoke"'* ]]
 [[ "${task_run}" == *'"namespace":"kember-system"'* && "${task_run}" == *'"name":"api-smoke"'* ]]
+[[ "${ui_root}" == *'<div id="root"></div>'* ]]
+[[ "${ui_route}" == "${ui_root}" ]]
