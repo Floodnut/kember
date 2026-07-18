@@ -48,6 +48,8 @@ kubectl apply -f deploy/rbac/kember-api.yaml
 kubectl apply -f deploy/api/api.yaml
 kubectl -n kember-system set image deployment/kember-api "api=${API_IMAGE}"
 
+kubectl -n kember-system delete taskrun api-smoke --ignore-not-found --wait=true
+kubectl -n kember-system delete workerpool api-smoke --ignore-not-found --wait=true
 kubectl apply -f - <<'EOF'
 apiVersion: kember.openflood.org/v1alpha1
 kind: WorkerPool
@@ -72,7 +74,19 @@ spec:
     queueTimeoutSeconds: 30
     timeoutSeconds: 60
     retentionSeconds: 60
----
+EOF
+
+worker_pool_exists=""
+for _ in $(seq 1 30); do
+  if kubectl -n kember-system get workerpool api-smoke >/dev/null 2>&1; then
+    worker_pool_exists="true"
+    break
+  fi
+  sleep 1
+done
+[[ "${worker_pool_exists}" == "true" ]]
+
+kubectl apply -f - <<'EOF'
 apiVersion: kember.openflood.org/v1alpha1
 kind: TaskRun
 metadata:
