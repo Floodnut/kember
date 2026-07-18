@@ -3,6 +3,10 @@ load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm
 kt_jvm_library(
     name = "api_core",
     srcs = glob(["src/main/kotlin/**/*.kt"]),
+    deps = [
+        "@kember_maven//:io_fabric8_kubernetes_client",
+        "@kember_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
+    ],
     visibility = ["//visibility:private"],
 )
 
@@ -29,6 +33,19 @@ kt_jvm_test(
     test_class = "dev.kember.api.service.KemberQueryServiceTest",
     deps = [
         ":api_core",
+        "@kember_maven//:junit_junit",
+        "@kember_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
+    ],
+)
+
+kt_jvm_test(
+    name = "fabric8_repository_test",
+    srcs = ["src/test/kotlin/dev/kember/api/repository/Fabric8KemberResourceRepositoryTest.kt"],
+    test_class = "dev.kember.api.repository.Fabric8KemberResourceRepositoryTest",
+    deps = [
+        ":api_core",
+        "@kember_maven//:io_fabric8_kubernetes_client",
+        "@kember_maven//:io_fabric8_kubernetes_server_mock",
         "@kember_maven//:junit_junit",
         "@kember_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
     ],
