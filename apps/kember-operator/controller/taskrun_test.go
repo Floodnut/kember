@@ -55,8 +55,8 @@ func TestQueueDeadlineExceededOnlyBeforeAssignment(t *testing.T) {
 	if !reconciler.queueDeadlineExceeded(taskRun) {
 		t.Fatal("queue deadline was not exceeded after 31 seconds")
 	}
-	started := metav1.NewTime(now.Add(-time.Second))
-	taskRun.Status.StartedAt = &started
+	dispatched := metav1.NewTime(now.Add(-time.Second))
+	taskRun.Status.DispatchedAt = &dispatched
 	if reconciler.queueDeadlineExceeded(taskRun) {
 		t.Fatal("queue deadline applied after assignment")
 	}

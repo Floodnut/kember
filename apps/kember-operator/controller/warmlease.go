@@ -55,7 +55,7 @@ func (r *TaskRunReconciler) reconcileWarmLease(ctx context.Context, taskRun *kem
 
 	now := metav1.NewTime(r.now())
 	taskRun.Status.WorkerRef = &kemberv1.WorkerReference{Name: pod.Name, UID: string(pod.UID), LeaseName: lease.Name}
-	taskRun.Status.StartedAt = &now
+	taskRun.Status.DispatchedAt = &now
 	taskRun.Status.Phase = kemberv1.TaskRunRunning
 	if err := r.Status().Update(ctx, taskRun); err != nil {
 		return ctrl.Result{}, err

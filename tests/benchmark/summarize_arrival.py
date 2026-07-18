@@ -28,7 +28,7 @@ with task_path.open(newline="") as source:
         if row["outcome"] != "Succeeded":
             failures[key] += 1
             continue
-        for metric in ("queue_wait_ms", "exec_duration_ms", "task_e2e_ms"):
+        for metric in ("queue_wait_ms", "active_duration_ms", "task_e2e_ms"):
             tasks[key][metric].append(int(row[metric]))
 
 if len(worker_uids) != len(set(worker_uids)):

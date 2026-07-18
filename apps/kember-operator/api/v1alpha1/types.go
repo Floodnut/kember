@@ -165,7 +165,7 @@ type TaskRunStatus struct {
 	ResolvedTemplate *ResolvedTemplate  `json:"resolvedTemplate,omitempty"`
 	JobRef           *JobReference      `json:"jobRef,omitempty"`
 	WorkerRef        *WorkerReference   `json:"workerRef,omitempty"`
-	StartedAt        *metav1.Time       `json:"startedAt,omitempty"`
+	DispatchedAt     *metav1.Time       `json:"dispatchedAt,omitempty"`
 	CompletedAt      *metav1.Time       `json:"completedAt,omitempty"`
 	ExitCode         *int32             `json:"exitCode,omitempty"`
 	Result           *TaskResult        `json:"result,omitempty"`

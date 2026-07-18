@@ -50,7 +50,7 @@ func (r *TaskRunReconciler) Reconcile(ctx context.Context, request ctrl.Request)
 		}
 		return r.resolveTemplate(ctx, taskRun)
 	}
-	if taskRun.Status.StartedAt == nil && taskRun.Status.JobRef == nil && taskRun.Status.WorkerRef == nil {
+	if taskRun.Status.DispatchedAt == nil && taskRun.Status.JobRef == nil && taskRun.Status.WorkerRef == nil {
 		if taskRun.Spec.Cancel {
 			return ctrl.Result{}, r.finish(ctx, taskRun, kemberv1.TaskRunCancelled, "TaskCancelled", "cancelled before assignment")
 		}
@@ -82,7 +82,7 @@ func (r *TaskRunReconciler) Reconcile(ctx context.Context, request ctrl.Request)
 	if taskRun.Spec.Cancel {
 		return ctrl.Result{}, r.stopJob(ctx, taskRun, job, kemberv1.TaskRunCancelled, "TaskCancelled")
 	}
-	if taskRun.Status.StartedAt != nil && r.now().After(taskRun.Status.StartedAt.Add(time.Duration(taskRun.Spec.TimeoutSeconds)*time.Second)) {
+	if taskRun.Status.DispatchedAt != nil && r.now().After(taskRun.Status.DispatchedAt.Add(time.Duration(taskRun.Spec.TimeoutSeconds)*time.Second)) {
 		return ctrl.Result{}, r.stopJob(ctx, taskRun, job, kemberv1.TaskRunTimedOut, "TaskTimedOut")
 	}
 	if taskRun.Status.Phase != kemberv1.TaskRunRunning {
@@ -122,7 +122,7 @@ func (r *TaskRunReconciler) createJob(ctx context.Context, taskRun *kemberv1.Tas
 	}
 	now := metav1.NewTime(r.now())
 	taskRun.Status.JobRef = &kemberv1.JobReference{Name: job.Name, UID: string(job.UID)}
-	taskRun.Status.StartedAt = &now
+	taskRun.Status.DispatchedAt = &now
 	taskRun.Status.Phase = kemberv1.TaskRunRunning
 	return ctrl.Result{}, r.Status().Update(ctx, taskRun)
 }
@@ -178,7 +178,7 @@ func (r *TaskRunReconciler) now() time.Time {
 }
 
 func (r *TaskRunReconciler) queueDeadlineExceeded(taskRun *kemberv1.TaskRun) bool {
-	if taskRun.Status.StartedAt != nil || taskRun.Status.JobRef != nil || taskRun.Status.WorkerRef != nil || taskRun.Status.ResolvedTemplate == nil || taskRun.Status.ResolvedTemplate.QueueTimeoutSeconds < 1 || taskRun.CreationTimestamp.IsZero() {
+	if taskRun.Status.DispatchedAt != nil || taskRun.Status.JobRef != nil || taskRun.Status.WorkerRef != nil || taskRun.Status.ResolvedTemplate == nil || taskRun.Status.ResolvedTemplate.QueueTimeoutSeconds < 1 || taskRun.CreationTimestamp.IsZero() {
 		return false
 	}
 	deadline := taskRun.CreationTimestamp.Add(time.Duration(taskRun.Status.ResolvedTemplate.QueueTimeoutSeconds) * time.Second)

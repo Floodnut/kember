@@ -21,7 +21,7 @@ NODE="${CLUSTER_NAME}-control-plane"
 mkdir -p "${OUTPUT_DIR}" "${CACHE_DIR}" "${ROOT}/.cache/go-build"
 TASK_RESULTS="${OUTPUT_DIR}/tasks.csv"
 BURST_RESULTS="${OUTPUT_DIR}/bursts.csv"
-printf 'pool_size,concurrency,arrival_interval_seconds,repetition,task_name,outcome,worker_name,worker_uid,lease_name,created_at_ms,started_at_ms,completed_at_ms,queue_wait_ms,exec_duration_ms,task_e2e_ms\n' > "${TASK_RESULTS}"
+printf 'pool_size,concurrency,arrival_interval_seconds,repetition,task_name,outcome,worker_name,worker_uid,lease_name,created_at_ms,dispatched_at_ms,completed_at_ms,queue_wait_ms,active_duration_ms,task_e2e_ms\n' > "${TASK_RESULTS}"
 printf 'pool_size,concurrency,arrival_interval_seconds,repetition,makespan_ms,throughput_tasks_per_second,observed_max_parallel,reserved_worker_seconds,reserved_cpu_core_seconds,reserved_memory_mib_seconds\n' > "${BURST_RESULTS}"
 
 now_ms() {
@@ -171,15 +171,15 @@ task_rows = []
 for item in items:
     metadata, status = item["metadata"], item.get("status", {})
     created = millis(metadata["creationTimestamp"])
-    started = millis(status["startedAt"])
+    dispatched = millis(status["dispatchedAt"])
     completed = millis(status["completedAt"])
     worker = status.get("workerRef", {})
-    intervals.append((started, 1))
+    intervals.append((dispatched, 1))
     intervals.append((completed, -1))
     task_rows.append([
         pool_size, concurrency, arrival_interval, repetition, metadata["name"], status.get("phase", ""),
         worker.get("name", ""), worker.get("uid", ""), worker.get("leaseName", ""),
-        created, started, completed, started-created, completed-started, completed-created,
+        created, dispatched, completed, dispatched-created, completed-dispatched, completed-created,
     ])
 
 active = maximum = 0

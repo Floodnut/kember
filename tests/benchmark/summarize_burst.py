@@ -36,7 +36,7 @@ def main():
         task_rows = grouped_tasks[key]
         burst_rows = grouped_bursts[key]
         queue = [int(row["queue_wait_ms"]) for row in task_rows]
-        execution = [int(row["exec_duration_ms"]) for row in task_rows]
+        active = [int(row["active_duration_ms"]) for row in task_rows]
         e2e = [int(row["task_e2e_ms"]) for row in task_rows]
         makespans = [int(row["makespan_ms"]) for row in burst_rows]
         throughputs = [float(row["throughput_tasks_per_second"]) for row in burst_rows]
@@ -48,7 +48,7 @@ def main():
             "failures": sum(row["outcome"] != "Succeeded" for row in task_rows),
             "unique_workers": len({row["worker_uid"] for row in task_rows}),
             "queue_wait_ms": {"p50": percentile(queue, 0.50), "p95": percentile(queue, 0.95)},
-            "exec_duration_ms": {"p50": percentile(execution, 0.50), "p95": percentile(execution, 0.95)},
+            "active_duration_ms": {"p50": percentile(active, 0.50), "p95": percentile(active, 0.95)},
             "task_e2e_ms": {"p50": percentile(e2e, 0.50), "p95": percentile(e2e, 0.95)},
             "burst_makespan_ms": {"median": int(statistics.median(makespans)), "p95": percentile(makespans, 0.95)},
             "throughput_tasks_per_second": {"median": round(statistics.median(throughputs), 3)},
@@ -60,7 +60,7 @@ def main():
         json.dump(summary, output, indent=2)
         output.write("\n")
 
-    print("pool concurrency failures makespan_p50_ms throughput_tps queue_p95_ms exec_p95_ms max_parallel")
+    print("pool concurrency failures makespan_p50_ms throughput_tps queue_p95_ms active_p95_ms max_parallel")
     for row in summary["scenarios"]:
         print(
             row["pool_size"],
@@ -69,7 +69,7 @@ def main():
             row["burst_makespan_ms"]["median"],
             row["throughput_tasks_per_second"]["median"],
             row["queue_wait_ms"]["p95"],
-            row["exec_duration_ms"]["p95"],
+            row["active_duration_ms"]["p95"],
             row["observed_max_parallel"],
         )
 
