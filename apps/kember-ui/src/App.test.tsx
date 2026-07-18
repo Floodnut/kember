@@ -1,13 +1,23 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { App } from "./App";
+import { ApiProvider } from "./api/ApiContext";
+import type { ApiClient } from "./api/client";
 
 describe("App", () => {
   it("renders Kember navigation", () => {
     render(
       <MemoryRouter>
-        <App />
+        <ApiProvider client={{
+          getNamespaces: vi.fn().mockResolvedValue({ items: [{ cluster: "local", name: "default" }] }),
+          listWorkerPools: vi.fn().mockResolvedValue({ items: [] }),
+          getWorkerPool: vi.fn(),
+          listTaskRuns: vi.fn().mockResolvedValue({ items: [] }),
+          getTaskRun: vi.fn(),
+        } satisfies ApiClient}>
+          <App />
+        </ApiProvider>
       </MemoryRouter>,
     );
 

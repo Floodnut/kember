@@ -18,3 +18,15 @@ export function formatTimestamp(value: string | null): string {
   }
   return date.toISOString().replace("T", " ").replace(".000Z", " UTC");
 }
+
+export function formatActiveDuration(taskRun: {
+  activeDurationSeconds: number | null;
+  dispatchedAt: string | null;
+  completedAt?: string | null;
+}, nowMs = Date.now()): string {
+  if (taskRun.activeDurationSeconds !== null) return formatDuration(taskRun.activeDurationSeconds);
+  if (taskRun.dispatchedAt === null || taskRun.completedAt) return "—";
+  const dispatchedMs = Date.parse(taskRun.dispatchedAt);
+  if (!Number.isFinite(dispatchedMs) || nowMs < dispatchedMs) return "—";
+  return `~${formatDuration((nowMs - dispatchedMs) / 1_000)}`;
+}
