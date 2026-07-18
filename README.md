@@ -49,6 +49,7 @@ WarmLease E2E는 `kember-e2e` kind cluster를 사용합니다.
 kind create cluster --name kember-e2e
 tests/e2e/warm-single-use.sh
 tests/e2e/warm-concurrent-failures.sh
+tests/e2e/warm-status-clean-cluster.sh
 ```
 
 E2E harness는 Operator와 fixture image를 빌드해 cluster에 적재하고, `kember.dev` CRD와 `kember-system` namespace를 적용합니다.
