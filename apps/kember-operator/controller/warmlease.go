@@ -53,7 +53,7 @@ func (r *TaskRunReconciler) reconcileWarmLease(ctx context.Context, taskRun *kem
 		return ctrl.Result{RequeueAfter: time.Second}, nil
 	}
 
-	now := metav1.NewTime(r.now())
+	now := kemberv1.NewPreciseTime(r.now())
 	taskRun.Status.WorkerRef = &kemberv1.WorkerReference{Name: pod.Name, UID: string(pod.UID), LeaseName: lease.Name}
 	taskRun.Status.DispatchedAt = &now
 	taskRun.Status.Phase = kemberv1.TaskRunRunning
@@ -181,7 +181,32 @@ func (r *TaskRunReconciler) cleanupWarmWorker(ctx context.Context, taskRun *kemb
 	if string(pod.UID) != taskRun.Status.WorkerRef.UID {
 		return nil
 	}
-	return client.IgnoreNotFound(r.Delete(ctx, pod, &client.DeleteOptions{Raw: &metav1.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &pod.UID}}}))
+	if !pod.DeletionTimestamp.IsZero() {
+		return nil
+	}
+	if err := r.Delete(ctx, pod, &client.DeleteOptions{Raw: &metav1.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &pod.UID}}}); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+	r.Metrics.ObserveWorkerTermination(taskWorkerTerminationReason(taskRun))
+	return nil
+}
+
+func taskWorkerTerminationReason(taskRun *kemberv1.TaskRun) string {
+	if len(taskRun.Status.Conditions) > 0 && taskRun.Status.Conditions[0].Reason == "ExecutionOutcomeUnknown" {
+		return "execution_outcome_unknown"
+	}
+	switch taskRun.Status.Phase {
+	case kemberv1.TaskRunSucceeded:
+		return "task_succeeded"
+	case kemberv1.TaskRunFailed:
+		return "task_failed"
+	case kemberv1.TaskRunTimedOut:
+		return "task_timed_out"
+	case kemberv1.TaskRunCancelled:
+		return "task_cancelled"
+	default:
+		return "task_terminal"
+	}
 }
 
 func podReady(pod *corev1.Pod) bool {

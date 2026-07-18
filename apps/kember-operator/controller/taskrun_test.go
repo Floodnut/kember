@@ -55,7 +55,7 @@ func TestQueueDeadlineExceededOnlyBeforeAssignment(t *testing.T) {
 	if !reconciler.queueDeadlineExceeded(taskRun) {
 		t.Fatal("queue deadline was not exceeded after 31 seconds")
 	}
-	dispatched := metav1.NewTime(now.Add(-time.Second))
+	dispatched := kemberv1.NewPreciseTime(now.Add(-time.Second))
 	taskRun.Status.DispatchedAt = &dispatched
 	if reconciler.queueDeadlineExceeded(taskRun) {
 		t.Fatal("queue deadline applied after assignment")

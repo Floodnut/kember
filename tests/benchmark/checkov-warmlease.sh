@@ -15,6 +15,7 @@ WORKLOAD_READINESS_COMMAND="${WORKLOAD_READINESS_COMMAND:-command -v checkov >/d
 OPERATOR_IMAGE="${OPERATOR_IMAGE:-kember-operator:e2e}"
 WARMUP_ITERATIONS="${WARMUP_ITERATIONS:-3}"
 ITERATIONS="${ITERATIONS:-30}"
+TIMING_TOLERANCE_MS="${TIMING_TOLERANCE_MS:-1500}"
 OUTPUT_DIR="${OUTPUT_DIR:-${ROOT}/.cache/benchmark/$(date -u +%Y%m%dT%H%M%SZ)}"
 CACHE_DIR="${ROOT}/.cache/e2e"
 NAMESPACE="${NAMESPACE:-kember-benchmark}"
@@ -23,7 +24,7 @@ NODE="${CLUSTER_NAME}-control-plane"
 mkdir -p "${OUTPUT_DIR}" "${CACHE_DIR}" "${ROOT}/.cache/go-build"
 RESULTS="${OUTPUT_DIR}/results.csv"
 SUMMARY="${OUTPUT_DIR}/summary.json"
-printf 'mode,iteration,duration_ms,outcome,resource_name\n' > "${RESULTS}"
+printf 'mode,iteration,duration_ms,outcome,resource_name,harness_assignment_ms,harness_active_ms,status_assignment_ms,status_active_ms,assignment_delta_ms,active_delta_ms,timing_tolerance_ms,timing_consistent\n' > "${RESULTS}"
 
 now_ms() {
   python3 -c 'import time; print(time.time_ns() // 1_000_000)'
@@ -49,20 +50,25 @@ wait_unassigned_ready_worker() {
   return 1
 }
 
-wait_taskrun() {
+wait_taskrun_timing() {
   local name="$1"
-  local phase=""
-  for _ in $(seq 1 1800); do
-    phase="$(kubectl -n "${NAMESPACE}" get taskrun "${name}" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
-    case "${phase}" in
-      Succeeded|Failed|TimedOut|Rejected|Cancelled)
-        printf '%s' "${phase}"
-        return 0
-        ;;
-    esac
-    sleep 0.1
-  done
-  printf 'ObservationTimedOut'
+  local observed_dispatch_ms observed_terminal_ms phase
+  observed_dispatch_ms="$(wait_taskrun_status_field "${name}" dispatchedAt)" || {
+    printf 'ObservationTimedOut|0|%s' "$(now_ms)"
+    return 0
+  }
+  observed_terminal_ms="$(wait_taskrun_status_field "${name}" completedAt)" || {
+    printf 'ObservationTimedOut|%s|%s' "${observed_dispatch_ms}" "$(now_ms)"
+    return 0
+  }
+  phase="$(kubectl -n "${NAMESPACE}" get taskrun "${name}" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
+  printf '%s|%s|%s' "${phase}" "${observed_dispatch_ms}" "${observed_terminal_ms}"
+}
+
+wait_taskrun_status_field() {
+  local name="$1" field="$2"
+  kubectl -n "${NAMESPACE}" wait --for="jsonpath={.status.${field}}" --timeout=180s "taskrun/${name}" >/dev/null
+  now_ms
 }
 
 wait_raw_job() {
@@ -119,7 +125,7 @@ EOF
   outcome="$(wait_raw_job "${name}")"
   end="$(now_ms)"
   if [[ "${record}" == "1" ]]; then
-    printf 'raw-job,%s,%s,%s,%s\n' "${iteration}" "$((end-start))" "${outcome}" "${name}" >> "${RESULTS}"
+    printf 'raw-job,%s,%s,%s,%s,,,,,,,,\n' "${iteration}" "$((end-start))" "${outcome}" "${name}" >> "${RESULTS}"
   fi
   if [[ "${outcome}" != "Succeeded" ]]; then
     kubectl -n "${NAMESPACE}" get job "${name}" -o yaml >&2
@@ -134,7 +140,7 @@ run_taskrun() {
   local iteration="$3"
   local record="$4"
   local name="${mode}-${iteration}"
-  local start end outcome
+  local start end outcome observed_dispatch timing
   if [[ "${mode}" == "warm-lease" ]]; then
     wait_unassigned_ready_worker
   fi
@@ -151,15 +157,38 @@ spec:
     ref: ${WORKLOAD_INPUT_REF}
   timeoutSeconds: 120
 EOF
-  outcome="$(wait_taskrun "${name}")"
-  end="$(now_ms)"
+  IFS='|' read -r outcome observed_dispatch end <<<"$(wait_taskrun_timing "${name}")"
   if [[ "${record}" == "1" ]]; then
-    printf '%s,%s,%s,%s,%s\n' "${mode}" "${iteration}" "$((end-start))" "${outcome}" "${name}" >> "${RESULTS}"
+    if [[ "${outcome}" == "Succeeded" ]]; then
+      timing="$(kubectl -n "${NAMESPACE}" get taskrun "${name}" -o json | python3 tests/benchmark/lifecycle_timing.py "${start}" "${observed_dispatch}" "${end}" "${TIMING_TOLERANCE_MS}")"
+      printf '%s,%s,%s,%s,%s,%s\n' "${mode}" "${iteration}" "$((end-start))" "${outcome}" "${name}" "${timing}" >> "${RESULTS}"
+    else
+      printf '%s,%s,%s,%s,%s,,,,,,,,\n' "${mode}" "${iteration}" "$((end-start))" "${outcome}" "${name}" >> "${RESULTS}"
+    fi
   fi
   if [[ "${outcome}" != "Succeeded" ]]; then
     kubectl -n "${NAMESPACE}" get taskrun "${name}" -o yaml >&2
     return 1
   fi
+}
+
+capture_lifecycle_metrics() {
+  local output="${OUTPUT_DIR}/metrics.txt"
+  local names=(
+    kember_workerpool_ready_workers
+    kember_workerpool_leased_workers
+    kember_taskrun_assignment_wait_seconds
+    kember_taskrun_active_duration_seconds
+    kember_taskrun_total
+    kember_worker_termination_requests_total
+  )
+  kubectl -n kember-system exec deployment/kember-operator -- wget -qO- http://127.0.0.1:8080/metrics > "${output}"
+  for name in "${names[@]}"; do
+    if ! grep -q "^# TYPE ${name} " "${output}"; then
+      echo "missing lifecycle metric: ${name}" >&2
+      return 1
+    fi
+  done
 }
 
 run_mode() {
@@ -284,7 +313,7 @@ EOF
 
 wait_unassigned_ready_worker
 
-python3 - "${OUTPUT_DIR}/metadata.json" "${WORKLOAD_NAME}" "${SOURCE_DIGEST}" "${WORKLOAD_IMAGE}" "${WARMUP_ITERATIONS}" "${ITERATIONS}" <<'PY'
+python3 - "${OUTPUT_DIR}/metadata.json" "${WORKLOAD_NAME}" "${SOURCE_DIGEST}" "${WORKLOAD_IMAGE}" "${WARMUP_ITERATIONS}" "${ITERATIONS}" "${TIMING_TOLERANCE_MS}" <<'PY'
 import json
 import platform
 import subprocess
@@ -293,13 +322,14 @@ import sys
 def command(*args):
     return subprocess.run(args, check=False, capture_output=True, text=True).stdout.strip()
 
-path, workload_name, source_digest, node_image, warmups, iterations = sys.argv[1:]
+path, workload_name, source_digest, node_image, warmups, iterations, timing_tolerance = sys.argv[1:]
 metadata = {
     "workload_name": workload_name,
     "source_image_digest": source_digest,
     "node_image": node_image,
     "warmup_iterations": int(warmups),
     "measured_iterations": int(iterations),
+    "timing_tolerance_ms": int(timing_tolerance),
     "host": platform.platform(),
     "kind_version": command("kind", "version"),
     "kubectl_client": command("kubectl", "version", "--client"),
@@ -333,5 +363,6 @@ for ((i=1; i<=ITERATIONS; i++)); do
   echo "completed measured iteration ${iteration}/${ITERATIONS}"
 done
 
+capture_lifecycle_metrics
 python3 tests/benchmark/summarize.py "${RESULTS}" "${SUMMARY}" | tee "${OUTPUT_DIR}/summary.txt"
 echo "benchmark output: ${OUTPUT_DIR}"

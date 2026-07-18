@@ -27,6 +27,37 @@ wait_pool_status() {
   return 1
 }
 
+wait_pool_progressing() {
+  local expected_generation="$1" attempts="$2" sleep_seconds="$3"
+  local status observed desired starting ready leased terminating ready_condition progressing degraded
+  for _ in $(seq 1 "${attempts}"); do
+    status="$(pool_status_line)"
+    read -r observed desired starting ready leased terminating ready_condition progressing degraded <<<"${status}"
+    if [[ "${observed:-}" == "${expected_generation}" && "${desired:-}" == "2" && "${starting:-}" =~ ^[0-9]+$ && "${starting}" -ge 1 && "${ready_condition:-}" == "False" && "${progressing:-}" == "True" && "${degraded:-}" == "False" ]]; then
+      return 0
+    fi
+    sleep "${sleep_seconds}"
+  done
+  echo "WorkerPool did not expose a progressing Starting state: got \"${status}\"" >&2
+  kubectl -n "${NAMESPACE}" get workerpool "${POOL}" -o yaml >&2
+  return 1
+}
+
+wait_task_phase() {
+  local name="$1" expected="$2" attempts="$3" sleep_seconds="$4"
+  local phase
+  for _ in $(seq 1 "${attempts}"); do
+    phase="$(kubectl -n "${NAMESPACE}" get taskrun "${name}" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
+    if [[ "${phase}" == "${expected}" ]]; then
+      return 0
+    fi
+    sleep "${sleep_seconds}"
+  done
+  echo "TaskRun ${name} phase did not become ${expected}: got ${phase}" >&2
+  kubectl -n "${NAMESPACE}" get taskrun "${name}" -o yaml >&2
+  return 1
+}
+
 assert_pool_status_empty() {
   local status
   for _ in $(seq 1 3); do
@@ -61,6 +92,12 @@ kubectl apply -f deploy/operator/operator.yaml
 kubectl -n kember-system rollout restart deployment/kember-operator
 kubectl -n kember-system rollout status deployment/kember-operator --timeout=120s
 
+original_operator_replicas="$(kubectl -n kember-system get deployment kember-operator -o jsonpath='{.spec.replicas}')"
+restore_operator() {
+  kubectl -n kember-system scale deployment/kember-operator --replicas="${original_operator_replicas}" >/dev/null 2>&1 || true
+}
+trap restore_operator EXIT
+
 # The kind cluster is reused across e2e scripts, so an operator from a prior
 # run may already be reconciling. Scale it to zero so the WorkerPool created
 # below starts from a verifiably empty status.
@@ -88,7 +125,7 @@ metadata:
 spec:
   execution:
     mode: exec
-    commandTemplate: ["/bin/sh", "-c", "true"]
+    commandTemplate: ["/bin/sh", "-c", "sleep 15"]
   lifecycle:
     profile: warmLease
     maxTasksPerWorker: 1
@@ -124,10 +161,30 @@ kubectl -n kember-system rollout status deployment/kember-operator --timeout=120
 
 generation="$(kubectl -n "${NAMESPACE}" get workerpool "${POOL}" -o jsonpath='{.metadata.generation}')"
 
-# Readiness is deliberately delayed 6s so the transient Starting window is
-# wide enough to observe without flakiness.
-wait_pool_status "${generation} 2 2 0 0 0 False True False" 20 0.5
+# Readiness is deliberately delayed 6s. Pod startup ordering is not stable, so
+# the contract is Progressing with at least one Starting worker, not exactly two.
+wait_pool_progressing "${generation}" 20 0.5
 
+wait_pool_status "${generation} 2 0 2 0 0 True False False" 120 1
+
+kubectl apply -f - <<EOF
+apiVersion: kember.dev/v1alpha1
+kind: TaskRun
+metadata:
+  name: status-task
+  namespace: ${NAMESPACE}
+spec:
+  workerPoolRef:
+    name: ${POOL}
+  input:
+    ref: e2e://status/input
+  timeoutSeconds: 30
+EOF
+
+# A real Lease must move one worker from Ready to Leased while the command is
+# running. Completion drains that single-use worker and the pool replaces it.
+wait_pool_status "${generation} 2 0 1 1 0 True False False" 30 0.5
+wait_task_phase status-task Succeeded 60 0.5
 wait_pool_status "${generation} 2 0 2 0 0 True False False" 120 1
 
 kubectl -n "${NAMESPACE}" patch workerpool "${POOL}" --type merge -p '{"spec":{"capacity":{"size":1}}}'
@@ -135,3 +192,5 @@ generation="$(kubectl -n "${NAMESPACE}" get workerpool "${POOL}" -o jsonpath='{.
 wait_pool_status "${generation} 1 0 1 0 0 True False False" 120 1
 
 kubectl -n "${NAMESPACE}" get workerpool,pods -o wide
+
+trap - EXIT

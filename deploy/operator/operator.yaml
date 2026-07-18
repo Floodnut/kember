@@ -22,6 +22,10 @@ spec:
             - --metrics-bind-address=:8080
             - --taskrun-controller-workers=8
             - --warm-exec-max-concurrency=4
+          ports:
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

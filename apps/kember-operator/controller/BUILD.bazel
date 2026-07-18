@@ -3,6 +3,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "controller",
     srcs = [
+        "metrics.go",
         "podexec.go",
         "taskrun.go",
         "warmlease.go",
@@ -12,6 +13,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//apps/kember-operator/api/v1alpha1",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
         "@io_k8s_api//batch/v1:go_default_library",
         "@io_k8s_api//coordination/v1:go_default_library",
         "@io_k8s_api//core/v1:go_default_library",
@@ -33,6 +35,7 @@ go_library(
 go_test(
     name = "controller_test",
     srcs = [
+        "metrics_test.go",
         "taskrun_test.go",
         "warmlease_test.go",
         "workerpool_test.go",
@@ -40,6 +43,7 @@ go_test(
     embed = [":controller"],
     deps = [
         "//apps/kember-operator/api/v1alpha1",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
         "@io_k8s_api//core/v1:go_default_library",
         "@io_k8s_api//coordination/v1:go_default_library",
         "@io_k8s_apimachinery//pkg/api/resource:go_default_library",

@@ -130,9 +130,11 @@ func TestWorkerPoolStatusReportsObservedCapacity(t *testing.T) {
 	}
 }
 
-func TestWorkerPoolStatusReportsInvalidSpec(t *testing.T) {
+func TestWorkerPoolStatusReportsStoredInvalidSpec(t *testing.T) {
 	scheme := workerPoolTestScheme(t)
 	pool := testWarmLeasePool()
+	// The fake client intentionally bypasses CRD admission to verify the
+	// controller's defense for an invalid object that is already stored.
 	pool.Spec.Lifecycle.MaxTasksPerWorker = 2
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&kemberv1.WorkerPool{}).WithObjects(pool).Build()
 	reconciler := &WorkerPoolReconciler{Client: fakeClient, APIReader: fakeClient, Scheme: scheme}

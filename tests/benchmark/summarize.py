@@ -23,6 +23,7 @@ def main() -> int:
     durations: dict[str, list[int]] = defaultdict(list)
     failures: dict[str, int] = defaultdict(int)
     by_iteration: dict[str, dict[str, int]] = defaultdict(dict)
+    timing_rows: list[dict[str, str]] = []
 
     with results_path.open(newline="") as source:
         for row in csv.DictReader(source):
@@ -33,6 +34,8 @@ def main() -> int:
                 by_iteration[row["iteration"]][mode] = duration
             else:
                 failures[mode] += 1
+            if row.get("timing_consistent"):
+                timing_rows.append(row)
 
     modes = ("raw-job", "kember-job", "warm-lease")
     if any(not durations[mode] for mode in modes):
@@ -87,6 +90,20 @@ def main() -> int:
         "paired_improvement_mean_ms": round(statistics.mean(paired_improvements), 1),
         "verdict": verdict,
     }
+    if timing_rows:
+        assignment_deltas = [abs(int(row["assignment_delta_ms"])) for row in timing_rows]
+        active_deltas = [abs(int(row["active_delta_ms"])) for row in timing_rows]
+        timing_consistent = all(row["timing_consistent"] == "true" for row in timing_rows)
+        summary["timing_validation"] = {
+            "samples": len(timing_rows),
+            "tolerance_ms": max(int(row["timing_tolerance_ms"]) for row in timing_rows),
+            "max_absolute_assignment_delta_ms": max(assignment_deltas),
+            "max_absolute_active_delta_ms": max(active_deltas),
+            "consistent": timing_consistent,
+        }
+        if not timing_consistent:
+            summary["comparison"]["verdict"] = "Invalid"
+    verdict = summary["comparison"]["verdict"]
     summary_path.write_text(json.dumps(summary, indent=2) + "\n")
 
     print("mode,count,failures,min_ms,p50_ms,p95_ms,max_ms,mean_ms,stdev_ms")

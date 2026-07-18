@@ -31,6 +31,7 @@ type TaskRunReconciler struct {
 	Executor      PodExecutor
 	WarmExecSlots chan struct{}
 	Now           func() time.Time
+	Metrics       *LifecycleMetrics
 }
 
 func (r *TaskRunReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
@@ -120,7 +121,7 @@ func (r *TaskRunReconciler) createJob(ctx context.Context, taskRun *kemberv1.Tas
 		}
 		return ctrl.Result{}, err
 	}
-	now := metav1.NewTime(r.now())
+	now := kemberv1.NewPreciseTime(r.now())
 	taskRun.Status.JobRef = &kemberv1.JobReference{Name: job.Name, UID: string(job.UID)}
 	taskRun.Status.DispatchedAt = &now
 	taskRun.Status.Phase = kemberv1.TaskRunRunning
@@ -163,11 +164,15 @@ func (r *TaskRunReconciler) finish(ctx context.Context, taskRun *kemberv1.TaskRu
 	if taskRun.Status.Phase.IsTerminal() {
 		return nil
 	}
-	now := metav1.NewTime(r.now())
+	now := kemberv1.NewPreciseTime(r.now())
 	taskRun.Status.Phase = phase
 	taskRun.Status.CompletedAt = &now
-	taskRun.Status.Conditions = []metav1.Condition{{Type: "Completed", Status: metav1.ConditionTrue, Reason: reason, Message: message, LastTransitionTime: now}}
-	return r.Status().Update(ctx, taskRun)
+	taskRun.Status.Conditions = []metav1.Condition{{Type: "Completed", Status: metav1.ConditionTrue, Reason: reason, Message: message, LastTransitionTime: metav1.NewTime(now.Time)}}
+	if err := r.Status().Update(ctx, taskRun); err != nil {
+		return err
+	}
+	r.Metrics.ObserveTaskRunTerminal(taskRun, reason)
+	return nil
 }
 
 func (r *TaskRunReconciler) now() time.Time {

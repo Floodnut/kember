@@ -33,14 +33,19 @@ type WorkerPoolReconciler struct {
 	client.Client
 	APIReader client.Reader
 	Scheme    *runtime.Scheme
+	Metrics   *LifecycleMetrics
 }
 
 func (r *WorkerPoolReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	pool := &kemberv1.WorkerPool{}
 	if err := r.Get(ctx, request.NamespacedName, pool); err != nil {
+		if apierrors.IsNotFound(err) {
+			r.Metrics.DeleteWorkerPool(request.Namespace, request.Name)
+		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	if !isWarmLeasePool(pool) {
+		r.Metrics.DeleteWorkerPool(pool.Namespace, pool.Name)
 		return ctrl.Result{}, nil
 	}
 	if err := validateWarmLeasePool(pool); err != nil {
@@ -74,8 +79,16 @@ func (r *WorkerPoolReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 		}
 		if pod.Labels[workerPoolGenerationLabel] != strconv.FormatInt(pool.Generation, 10) || pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
 			if !leased && pod.DeletionTimestamp.IsZero() {
-				if err := r.Delete(ctx, pod); err != nil && !apierrors.IsNotFound(err) {
-					return ctrl.Result{}, err
+				if err := r.Delete(ctx, pod); err != nil {
+					if !apierrors.IsNotFound(err) {
+						return ctrl.Result{}, err
+					}
+				} else {
+					reason := "generation_changed"
+					if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
+						reason = "worker_terminal"
+					}
+					r.Metrics.ObserveWorkerTermination(reason)
 				}
 				capacity.Terminating++
 			} else if leased {
@@ -102,8 +115,12 @@ func (r *WorkerPoolReconciler) Reconcile(ctx context.Context, request ctrl.Reque
 	for managed > size && len(available) > 0 {
 		pod := available[len(available)-1]
 		available = available[:len(available)-1]
-		if err := r.Delete(ctx, pod); err != nil && !apierrors.IsNotFound(err) {
-			return ctrl.Result{}, err
+		if err := r.Delete(ctx, pod); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return ctrl.Result{}, err
+			}
+		} else {
+			r.Metrics.ObserveWorkerTermination("scale_down")
 		}
 		if podReady(pod) {
 			capacity.Ready--
@@ -155,9 +172,14 @@ func (r *WorkerPoolReconciler) updateStatus(ctx context.Context, pool *kemberv1.
 		setPoolCondition(&pool.Status.Conditions, pool.Generation, "Degraded", false, "InvalidSpec", "AsExpected", "worker pool reconciliation is healthy")
 	}
 	if reflect.DeepEqual(before, pool.Status) {
+		r.Metrics.SetWorkerPool(pool.Namespace, pool.Name, capacity.Ready, capacity.Leased)
 		return nil
 	}
-	return r.Status().Update(ctx, pool)
+	if err := r.Status().Update(ctx, pool); err != nil {
+		return err
+	}
+	r.Metrics.SetWorkerPool(pool.Namespace, pool.Name, capacity.Ready, capacity.Leased)
+	return nil
 }
 
 func setPoolCondition(conditions *[]metav1.Condition, generation int64, conditionType string, value bool, trueReason, falseReason, message string) {

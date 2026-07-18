@@ -5,6 +5,8 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -176,14 +178,44 @@ type WorkerReference struct {
 	LeaseName string `json:"leaseName"`
 }
 
+// PreciseTime preserves sub-second lifecycle intervals while remaining able to
+// read the second-precision timestamps written by earlier alpha controllers.
+type PreciseTime struct {
+	time.Time
+}
+
+func NewPreciseTime(value time.Time) PreciseTime {
+	return PreciseTime{Time: value.UTC()}
+}
+
+func (value PreciseTime) MarshalJSON() ([]byte, error) {
+	return json.Marshal(value.UTC().Format(time.RFC3339Nano))
+}
+
+func (value *PreciseTime) UnmarshalJSON(data []byte) error {
+	var raw string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, raw)
+	if err != nil {
+		return err
+	}
+	value.Time = parsed
+	return nil
+}
+
+func (PreciseTime) OpenAPISchemaType() []string { return []string{"string"} }
+func (PreciseTime) OpenAPISchemaFormat() string { return "date-time" }
+
 type TaskRunStatus struct {
 	Phase            TaskRunPhase       `json:"phase,omitempty"`
 	Conditions       []metav1.Condition `json:"conditions,omitempty"`
 	ResolvedTemplate *ResolvedTemplate  `json:"resolvedTemplate,omitempty"`
 	JobRef           *JobReference      `json:"jobRef,omitempty"`
 	WorkerRef        *WorkerReference   `json:"workerRef,omitempty"`
-	DispatchedAt     *metav1.Time       `json:"dispatchedAt,omitempty"`
-	CompletedAt      *metav1.Time       `json:"completedAt,omitempty"`
+	DispatchedAt     *PreciseTime       `json:"dispatchedAt,omitempty"`
+	CompletedAt      *PreciseTime       `json:"completedAt,omitempty"`
 	ExitCode         *int32             `json:"exitCode,omitempty"`
 	Result           *TaskResult        `json:"result,omitempty"`
 }

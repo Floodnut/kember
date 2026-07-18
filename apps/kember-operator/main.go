@@ -14,6 +14,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	controllerconfig "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	kemberv1 "github.com/Floodnut/kember/apps/kember-operator/api/v1alpha1"
 	"github.com/Floodnut/kember/apps/kember-operator/controller"
@@ -33,12 +35,13 @@ func main() {
 	scheme := runtime.NewScheme()
 	must(clientgoscheme.AddToScheme(scheme))
 	must(kemberv1.AddToScheme(scheme))
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{Scheme: scheme})
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{Scheme: scheme, Metrics: metricsserver.Options{BindAddress: metricsAddress}})
 	must(err)
+	lifecycleMetrics := controller.NewLifecycleMetrics(crmetrics.Registry)
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	must(err)
-	must(ctrl.NewControllerManagedBy(mgr).For(&kemberv1.TaskRun{}).Owns(&batchv1.Job{}).WithOptions(controllerconfig.Options{MaxConcurrentReconciles: taskRunControllerWorkers}).Complete(&controller.TaskRunReconciler{Client: mgr.GetClient(), APIReader: mgr.GetAPIReader(), Scheme: mgr.GetScheme(), Executor: controller.NewKubernetesPodExecutor(mgr.GetConfig(), clientset.CoreV1()), WarmExecSlots: make(chan struct{}, warmExecMaxConcurrency)}))
-	must(ctrl.NewControllerManagedBy(mgr).For(&kemberv1.WorkerPool{}).Owns(&corev1.Pod{}).Complete(&controller.WorkerPoolReconciler{Client: mgr.GetClient(), APIReader: mgr.GetAPIReader(), Scheme: mgr.GetScheme()}))
+	must(ctrl.NewControllerManagedBy(mgr).For(&kemberv1.TaskRun{}).Owns(&batchv1.Job{}).WithOptions(controllerconfig.Options{MaxConcurrentReconciles: taskRunControllerWorkers}).Complete(&controller.TaskRunReconciler{Client: mgr.GetClient(), APIReader: mgr.GetAPIReader(), Scheme: mgr.GetScheme(), Executor: controller.NewKubernetesPodExecutor(mgr.GetConfig(), clientset.CoreV1()), WarmExecSlots: make(chan struct{}, warmExecMaxConcurrency), Metrics: lifecycleMetrics}))
+	must(ctrl.NewControllerManagedBy(mgr).For(&kemberv1.WorkerPool{}).Owns(&corev1.Pod{}).Complete(&controller.WorkerPoolReconciler{Client: mgr.GetClient(), APIReader: mgr.GetAPIReader(), Scheme: mgr.GetScheme(), Metrics: lifecycleMetrics}))
 	must(mgr.Start(ctrl.SetupSignalHandler()))
 }
 

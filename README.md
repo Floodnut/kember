@@ -54,6 +54,15 @@ tests/e2e/warm-status-clean-cluster.sh
 
 E2E harness는 Operator와 fixture image를 빌드해 cluster에 적재하고, `kember.dev` CRD와 `kember-system` namespace를 적용합니다.
 
+측정 계약만 확인할 때는 kind cluster에서 warm-up 없이 각 mode를 한 번씩 실행할 수 있습니다. 이 smoke는 TaskRun status와 harness 시간을 비교하고, operator `/metrics`의 lifecycle metric family도 확인합니다.
+
+```bash
+WARMUP_ITERATIONS=0 ITERATIONS=1 tests/benchmark/checkov-warmlease.sh
+WARMUP_ITERATIONS=0 ITERATIONS=1 tests/benchmark/trivy-warmlease.sh
+```
+
+전체 성능 결론은 1회 smoke가 아니라 `docs/benchmarks`의 반복 benchmark 결과와 arrival/capacity 실증을 기준으로 합니다.
+
 ## Kubernetes API
 
 `WorkerPool`은 platform owner가 관리하는 실행·보안·capacity template이고, `TaskRun`은 해당 template으로 한 번 실행할 것을 요청하는 namespaced resource입니다.
