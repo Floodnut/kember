@@ -21,7 +21,9 @@ jobs:
       - name: Benchmark timing unit tests
         run: python3 -m unittest discover -s tests/benchmark -p 'test_*.py'
       - name: Shell syntax checks
-        run: bash -n tests/benchmark/checkov-warmlease.sh tests/benchmark/trivy-warmlease.sh tests/e2e/warm-status-clean-cluster.sh
+        run: bash -n deploy/install.sh tests/manifest/rbac-contract.sh tests/e2e/alpha-install-smoke.sh tests/e2e/operator-operations-smoke.sh tests/benchmark/checkov-warmlease.sh tests/benchmark/trivy-warmlease.sh tests/e2e/warm-status-clean-cluster.sh
+      - name: RBAC contract checks
+        run: tests/manifest/rbac-contract.sh
 
   bazel:
     runs-on: ubuntu-latest
