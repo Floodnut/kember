@@ -1,8 +1,57 @@
-filegroup(
-    name = "sources",
-    srcs = glob([
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "*.json",
-    ], allow_empty = True),
+load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//apps/kember-ui:vite/package_json.bzl", vite_bin = "bin")
+load("@npm//apps/kember-ui:vitest/package_json.bzl", vitest_bin = "bin")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+npm_link_all_packages(name = "node_modules")
+
+UI_SRCS = glob([
+    "src/**/*.ts",
+    "src/**/*.tsx",
+]) + [
+    "index.html",
+    "package.json",
+    "tsconfig.json",
+    "vite.config.ts",
+]
+
+vite_bin.vite_binary(
+    name = "vite",
+    data = [":node_modules"],
+)
+
+js_run_binary(
+    name = "build",
+    srcs = UI_SRCS,
+    out_dirs = ["dist"],
+    args = [
+        "build",
+        "--outDir",
+        "dist",
+    ],
+    chdir = package_name(),
+    tags = ["no-sandbox"],
+    tool = ":vite",
+)
+
+vitest_bin.vitest_binary(
+    name = "vitest",
+    data = [":node_modules"],
+)
+
+js_run_binary(
+    name = "test_action",
+    srcs = UI_SRCS,
+    args = ["run"],
+    chdir = package_name(),
+    stdout = "test-output.txt",
+    tool = ":vitest",
+)
+
+sh_test(
+    name = "test",
+    srcs = ["test-result.sh"],
+    args = ["$(rootpath :test_action)"],
+    data = [":test_action"],
 )

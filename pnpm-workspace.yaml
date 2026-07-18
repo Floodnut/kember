@@ -1,0 +1,4 @@
+packages:
+  - apps/kember-ui
+
+onlyBuiltDependencies: []

@@ -1,0 +1,17 @@
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig(({ mode }) => ({
+  plugins: [react()],
+  resolve: {
+    preserveSymlinks: mode === "test",
+  },
+  server: {
+    proxy: {
+      "/api": "http://127.0.0.1:8080",
+    },
+  },
+  test: {
+    environment: "jsdom",
+  },
+}));

@@ -2,8 +2,11 @@
 .bazelversion.local
 .DS_Store
 /bazel-*
-/node_modules
-/dist
+node_modules
+/apps/kember-ui/node_modules
+apps/kember-ui/node_modules
+dist
+/.pnpm-store/
 /coverage
 /.cache
 /.gradle
@@ -14,4 +17,5 @@
 
 # Local agent and design artifacts
 /.claude/
+/.superpowers/
 /docs/
