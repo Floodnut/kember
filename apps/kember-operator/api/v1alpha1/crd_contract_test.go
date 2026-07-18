@@ -65,15 +65,15 @@ func TestCRDsUseNamespacedV1alpha1API(t *testing.T) {
 		kind     string
 		plural   string
 	}{
-		{filename: "kember.dev_workerpools.yaml", kind: "WorkerPool", plural: "workerpools"},
-		{filename: "kember.dev_taskruns.yaml", kind: "TaskRun", plural: "taskruns"},
+		{filename: "kember.openflood.org_workerpools.yaml", kind: "WorkerPool", plural: "workerpools"},
+		{filename: "kember.openflood.org_taskruns.yaml", kind: "TaskRun", plural: "taskruns"},
 	}
 
 	for _, test := range tests {
 		t.Run(test.kind, func(t *testing.T) {
 			crd := loadCRD(t, test.filename)
 			spec := nestedMap(t, crd["spec"])
-			if spec["group"] != "kember.dev" || spec["scope"] != "Namespaced" {
+			if spec["group"] != "kember.openflood.org" || spec["scope"] != "Namespaced" {
 				t.Fatalf("unexpected API identity: group=%v scope=%v", spec["group"], spec["scope"])
 			}
 			names := nestedMap(t, spec["names"])
@@ -96,7 +96,7 @@ func TestCRDsUseNamespacedV1alpha1API(t *testing.T) {
 }
 
 func TestWorkerPoolExecutionContractIsExplicit(t *testing.T) {
-	crd := loadCRD(t, "kember.dev_workerpools.yaml")
+	crd := loadCRD(t, "kember.openflood.org_workerpools.yaml")
 	versions := nestedMap(t, crd["spec"])["versions"].([]any)
 	version := nestedMap(t, versions[0])
 	schema := nestedMap(t, version["schema"], "openAPIV3Schema")
@@ -117,7 +117,7 @@ func TestWorkerPoolExecutionContractIsExplicit(t *testing.T) {
 }
 
 func TestTaskRunPhaseAndInputContractAreExplicit(t *testing.T) {
-	crd := loadCRD(t, "kember.dev_taskruns.yaml")
+	crd := loadCRD(t, "kember.openflood.org_taskruns.yaml")
 	versions := nestedMap(t, crd["spec"])["versions"].([]any)
 	version := nestedMap(t, versions[0])
 	schema := nestedMap(t, version["schema"], "openAPIV3Schema")

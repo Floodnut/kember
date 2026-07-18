@@ -9,7 +9,7 @@ kind: ClusterRole
 metadata:
   name: kember-operator
 rules:
-  - apiGroups: ["kember.dev"]
+  - apiGroups: ["kember.openflood.org"]
     resources: ["taskruns", "taskruns/status", "workerpools", "workerpools/status"]
     verbs: ["get", "list", "watch", "patch", "update"]
   - apiGroups: ["batch"]

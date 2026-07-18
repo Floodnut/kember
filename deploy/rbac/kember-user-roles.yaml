@@ -3,10 +3,10 @@ kind: ClusterRole
 metadata:
   name: kember-platform-admin
 rules:
-  - apiGroups: ["kember.dev"]
+  - apiGroups: ["kember.openflood.org"]
     resources: ["workerpools", "taskruns"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["kember.dev"]
+  - apiGroups: ["kember.openflood.org"]
     resources: ["taskruns/status"]
     verbs: ["get"]
 ---
@@ -15,10 +15,10 @@ kind: ClusterRole
 metadata:
   name: kember-taskrun-developer
 rules:
-  - apiGroups: ["kember.dev"]
+  - apiGroups: ["kember.openflood.org"]
     resources: ["taskruns"]
     verbs: ["get", "list", "watch", "create", "patch"]
-  - apiGroups: ["kember.dev"]
+  - apiGroups: ["kember.openflood.org"]
     resources: ["taskruns/status"]
     verbs: ["get"]
 ---
@@ -27,6 +27,6 @@ kind: ClusterRole
 metadata:
   name: kember-auditor
 rules:
-  - apiGroups: ["kember.dev"]
+  - apiGroups: ["kember.openflood.org"]
     resources: ["workerpools", "taskruns", "taskruns/status"]
     verbs: ["get", "list", "watch"]

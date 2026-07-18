@@ -9,7 +9,7 @@ if grep -Eq '\["\*"\]' "${ROLE_FILE}"; then
 fi
 
 for required in \
-	'apiGroups: ["kember.dev"]' \
+	'apiGroups: ["kember.openflood.org"]' \
 	'apiGroups: ["batch"]' \
 	'apiGroups: [""]' \
 	'apiGroups: ["coordination.k8s.io"]' \

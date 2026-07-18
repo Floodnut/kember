@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   name: kember-warm-e2e
   labels:
-    kember.dev/e2e-stage: pool
+    kember.openflood.org/e2e-stage: pool
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -11,15 +11,15 @@ metadata:
   name: warm-worker
   namespace: kember-warm-e2e
   labels:
-    kember.dev/e2e-stage: pool
+    kember.openflood.org/e2e-stage: pool
 ---
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: WorkerPool
 metadata:
   name: echo-warm
   namespace: kember-warm-e2e
   labels:
-    kember.dev/e2e-stage: pool
+    kember.openflood.org/e2e-stage: pool
 spec:
   execution:
     mode: exec
@@ -58,13 +58,13 @@ spec:
     timeoutSeconds: 60
     retentionSeconds: 60
 ---
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: TaskRun
 metadata:
   name: echo-warm
   namespace: kember-warm-e2e
   labels:
-    kember.dev/e2e-stage: task
+    kember.openflood.org/e2e-stage: task
 spec:
   workerPoolRef:
     name: echo-warm

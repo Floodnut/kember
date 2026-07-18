@@ -34,18 +34,18 @@ if ! kind load docker-image --name "${CLUSTER_NAME}" "${WORKER_IMAGE}"; then
 fi
 
 kubectl apply -f deploy/operator/namespace.yaml
-kubectl apply -f deploy/crd/kember.dev_workerpools.yaml
-kubectl apply -f deploy/crd/kember.dev_taskruns.yaml
+kubectl apply -f deploy/crd/kember.openflood.org_workerpools.yaml
+kubectl apply -f deploy/crd/kember.openflood.org_taskruns.yaml
 kubectl apply -f deploy/rbac/kember-operator.yaml
 kubectl apply -f deploy/operator/operator.yaml
 kubectl -n kember-system rollout restart deployment/kember-operator
 kubectl -n kember-system rollout status deployment/kember-operator --timeout=120s
 
 kubectl delete namespace kember-warm-e2e --ignore-not-found --wait=true
-kubectl apply -l kember.dev/e2e-stage=pool -f deploy/samples/e2e-warm-single-use.yaml
+kubectl apply -l kember.openflood.org/e2e-stage=pool -f deploy/samples/e2e-warm-single-use.yaml
 
 for _ in $(seq 1 120); do
-  ready="$(kubectl -n kember-warm-e2e get pods -l kember.dev/workerpool=echo-warm --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' | awk '$1 == "True" {count++} END {print count+0}')"
+  ready="$(kubectl -n kember-warm-e2e get pods -l kember.openflood.org/workerpool=echo-warm --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' | awk '$1 == "True" {count++} END {print count+0}')"
   if [[ "${ready}" == "2" ]]; then
     break
   fi
@@ -54,12 +54,12 @@ done
 [[ "${ready}" == "2" ]]
 wait_pool_status_ready
 
-kubectl apply -l kember.dev/e2e-stage=task -f deploy/samples/e2e-warm-single-use.yaml
+kubectl apply -l kember.openflood.org/e2e-stage=task -f deploy/samples/e2e-warm-single-use.yaml
 
 task_uid="$(kubectl -n kember-warm-e2e get taskrun echo-warm -o jsonpath='{.metadata.uid}')"
 lease_holder=""
 for _ in $(seq 1 30); do
-  lease_holder="$(kubectl -n kember-warm-e2e get leases -l "kember.dev/taskrun-uid=${task_uid}" -o jsonpath='{.items[0].spec.holderIdentity}' 2>/dev/null || true)"
+  lease_holder="$(kubectl -n kember-warm-e2e get leases -l "kember.openflood.org/taskrun-uid=${task_uid}" -o jsonpath='{.items[0].spec.holderIdentity}' 2>/dev/null || true)"
   if [[ "${lease_holder}" == "${task_uid}" ]]; then
     break
   fi
@@ -85,7 +85,7 @@ used_worker="$(kubectl -n kember-warm-e2e get taskrun echo-warm -o jsonpath='{.s
 kubectl -n kember-warm-e2e wait --for=delete "pod/${used_worker}" --timeout=60s
 
 for _ in $(seq 1 120); do
-  ready="$(kubectl -n kember-warm-e2e get pods -l kember.dev/workerpool=echo-warm --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' | awk '$1 == "True" {count++} END {print count+0}')"
+  ready="$(kubectl -n kember-warm-e2e get pods -l kember.openflood.org/workerpool=echo-warm --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' | awk '$1 == "True" {count++} END {print count+0}')"
   if [[ "${ready}" == "2" ]]; then
     break
   fi
@@ -93,8 +93,8 @@ for _ in $(seq 1 120); do
 done
 [[ "${ready}" == "2" ]]
 wait_pool_status_ready
-[[ "$(kubectl -n kember-warm-e2e get jobs -l kember.dev/taskrun-uid -o name)" == "" ]]
-[[ "$(kubectl -n kember-warm-e2e get leases -l "kember.dev/taskrun-uid=${task_uid}" -o name)" == "" ]]
+[[ "$(kubectl -n kember-warm-e2e get jobs -l kember.openflood.org/taskrun-uid -o name)" == "" ]]
+[[ "$(kubectl -n kember-warm-e2e get leases -l "kember.openflood.org/taskrun-uid=${task_uid}" -o name)" == "" ]]
 
 kubectl -n kember-warm-e2e patch workerpool echo-warm --type merge -p '{"spec":{"template":{"readinessProbe":{"periodSeconds":2}}}}'
 wait_pool_status_ready

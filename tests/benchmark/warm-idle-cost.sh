@@ -20,7 +20,7 @@ wait_ready_capacity() {
   local generation ready
   generation="$(kubectl -n "${NAMESPACE}" get workerpool "${POOL}" -o jsonpath='{.metadata.generation}')"
   for _ in $(seq 1 600); do
-    ready="$(kubectl -n "${NAMESPACE}" get pods -l "kember.dev/workerpool=${POOL},kember.dev/workerpool-generation=${generation},!kember.dev/taskrun-uid" --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' | awk '$1 == "True" {count++} END {print count+0}')"
+    ready="$(kubectl -n "${NAMESPACE}" get pods -l "kember.openflood.org/workerpool=${POOL},kember.openflood.org/workerpool-generation=${generation},!kember.openflood.org/taskrun-uid" --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' | awk '$1 == "True" {count++} END {print count+0}')"
     if [[ "${ready}" == "${wanted}" ]]; then
       return 0
     fi
@@ -37,7 +37,7 @@ collect_condition() {
   wait_ready_capacity "${size}"
   sleep "${STABILIZE_SECONDS}"
 
-  kubectl -n "${NAMESPACE}" get pods -l "kember.dev/workerpool=${POOL},!kember.dev/taskrun-uid" -o json > "${OUTPUT_DIR}/pods-size${size}.json"
+  kubectl -n "${NAMESPACE}" get pods -l "kember.openflood.org/workerpool=${POOL},!kember.openflood.org/taskrun-uid" -o json > "${OUTPUT_DIR}/pods-size${size}.json"
   python3 - "${OUTPUT_DIR}/pods-size${size}.json" "${OUTPUT_DIR}/requests-size${size}.txt" <<'PY'
 import json
 import sys

@@ -25,7 +25,7 @@ wait_ready_capacity() {
   local wanted="${1:-4}"
   local ready
   for _ in $(seq 1 600); do
-    ready="$(kubectl -n "${NAMESPACE}" get pods -l "kember.dev/workerpool=${POOL},!kember.dev/taskrun-uid" -o json | python3 -c '
+    ready="$(kubectl -n "${NAMESPACE}" get pods -l "kember.openflood.org/workerpool=${POOL},!kember.openflood.org/taskrun-uid" -o json | python3 -c '
 import json, sys
 items = json.load(sys.stdin)["items"]
 print(sum(
@@ -69,11 +69,11 @@ scenario, timeout, count = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 items = []
 for index in range(1, count + 1):
     items.append({
-        "apiVersion": "kember.dev/v1alpha1",
+        "apiVersion": "kember.openflood.org/v1alpha1",
         "kind": "TaskRun",
         "metadata": {
             "name": f"{scenario}-{index}",
-            "labels": {"kember.dev/e2e-scenario": scenario},
+            "labels": {"kember.openflood.org/e2e-scenario": scenario},
         },
         "spec": {
             "workerPoolRef": {"name": "failure-warm"},
@@ -91,20 +91,20 @@ wait_phase_count() {
   local wanted="${3:-4}"
   local count
   for _ in $(seq 1 900); do
-    count="$(kubectl -n "${NAMESPACE}" get taskruns -l "kember.dev/e2e-scenario=${scenario}" -o jsonpath='{range .items[*]}{.status.phase}{"\n"}{end}' | awk -v phase="${phase}" '$1 == phase {count++} END {print count+0}')"
+    count="$(kubectl -n "${NAMESPACE}" get taskruns -l "kember.openflood.org/e2e-scenario=${scenario}" -o jsonpath='{range .items[*]}{.status.phase}{"\n"}{end}' | awk -v phase="${phase}" '$1 == phase {count++} END {print count+0}')"
     if [[ "${count}" == "${wanted}" ]]; then
       return 0
     fi
     sleep 0.2
   done
-  kubectl -n "${NAMESPACE}" get taskruns -l "kember.dev/e2e-scenario=${scenario}" -o yaml >&2
+  kubectl -n "${NAMESPACE}" get taskruns -l "kember.openflood.org/e2e-scenario=${scenario}" -o yaml >&2
   echo "timed out waiting for ${wanted} ${phase} TaskRuns in ${scenario}" >&2
   return 1
 }
 
 assert_unique_workers() {
   local scenario="$1"
-  kubectl -n "${NAMESPACE}" get taskruns -l "kember.dev/e2e-scenario=${scenario}" -o json | python3 -c '
+  kubectl -n "${NAMESPACE}" get taskruns -l "kember.openflood.org/e2e-scenario=${scenario}" -o json | python3 -c '
 import json, sys
 items = json.load(sys.stdin)["items"]
 uids = [item.get("status", {}).get("workerRef", {}).get("uid", "") for item in items]
@@ -122,8 +122,8 @@ load_image "${OPERATOR_IMAGE}"
 load_image "${WORKER_IMAGE}"
 
 kubectl apply -f deploy/operator/namespace.yaml >/dev/null
-kubectl apply -f deploy/crd/kember.dev_workerpools.yaml >/dev/null
-kubectl apply -f deploy/crd/kember.dev_taskruns.yaml >/dev/null
+kubectl apply -f deploy/crd/kember.openflood.org_workerpools.yaml >/dev/null
+kubectl apply -f deploy/crd/kember.openflood.org_taskruns.yaml >/dev/null
 kubectl apply -f deploy/rbac/kember-operator.yaml >/dev/null
 kubectl apply -f deploy/operator/operator.yaml >/dev/null
 kubectl -n kember-system rollout restart deployment/kember-operator >/dev/null
@@ -142,7 +142,7 @@ metadata:
   name: failure-worker
   namespace: ${NAMESPACE}
 ---
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: WorkerPool
 metadata:
   name: ${POOL}
@@ -191,7 +191,7 @@ wait_ready_capacity 1
 
 create_scenario cancel 3 2
 wait_phase_count cancel Running 1
-pending="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.dev/e2e-scenario=cancel -o json | python3 -c '
+pending="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.openflood.org/e2e-scenario=cancel -o json | python3 -c '
 import json, sys
 items = json.load(sys.stdin)["items"]
 pending = [item["metadata"]["name"] for item in items if not item.get("status", {}).get("workerRef")]
@@ -209,7 +209,7 @@ wait_no_leases
 create_scenario queue 6 2
 wait_phase_count queue Running 1
 wait_phase_count queue TimedOut 2
-queue_timeout_task="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.dev/e2e-scenario=queue -o json | python3 -c '
+queue_timeout_task="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.openflood.org/e2e-scenario=queue -o json | python3 -c '
 import json, sys
 items = json.load(sys.stdin)["items"]
 queued = [item for item in items if item.get("status", {}).get("conditions", [{}])[0].get("reason") == "QueueTimedOut"]
@@ -218,7 +218,7 @@ if len(queued) != 1 or queued[0].get("status", {}).get("workerRef"):
 print(queued[0]["metadata"]["name"])
 ')"
 [[ -n "${queue_timeout_task}" ]]
-queue_reasons="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.dev/e2e-scenario=queue -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Completed")].reason}{"\n"}{end}')"
+queue_reasons="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.openflood.org/e2e-scenario=queue -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Completed")].reason}{"\n"}{end}')"
 [[ "$(awk '$1 == "QueueTimedOut" {count++} END {print count+0}' <<<"${queue_reasons}")" == "1" ]]
 [[ "$(awk '$1 == "TaskTimedOut" {count++} END {print count+0}' <<<"${queue_reasons}")" == "1" ]]
 wait_ready_capacity 1
@@ -230,10 +230,10 @@ wait_ready_capacity
 create_scenario podloss 60
 wait_phase_count podloss Running
 assert_unique_workers podloss
-worker_pods="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.dev/e2e-scenario=podloss -o jsonpath='{range .items[*]}{.status.workerRef.name}{"\n"}{end}')"
+worker_pods="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.openflood.org/e2e-scenario=podloss -o jsonpath='{range .items[*]}{.status.workerRef.name}{"\n"}{end}')"
 kubectl -n "${NAMESPACE}" delete pod ${worker_pods} --grace-period=0 --force --wait=false >/dev/null
 wait_phase_count podloss Failed
-podloss_reasons="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.dev/e2e-scenario=podloss -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Completed")].reason}{"\n"}{end}')"
+podloss_reasons="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.openflood.org/e2e-scenario=podloss -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Completed")].reason}{"\n"}{end}')"
 [[ "$(awk '$1 == "WorkerLost" {count++} END {print count+0}' <<<"${podloss_reasons}")" == "4" ]]
 wait_ready_capacity
 wait_no_leases
@@ -247,7 +247,7 @@ kubectl -n kember-system rollout restart deployment/kember-operator >/dev/null
 kubectl -n kember-system rollout status deployment/kember-operator --timeout=120s >/dev/null
 wait_phase_count restart Failed
 
-reasons="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.dev/e2e-scenario=restart -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Completed")].reason}{"\n"}{end}')"
+reasons="$(kubectl -n "${NAMESPACE}" get taskruns -l kember.openflood.org/e2e-scenario=restart -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Completed")].reason}{"\n"}{end}')"
 [[ "$(awk '$1 == "ExecutionOutcomeUnknown" {count++} END {print count+0}' <<<"${reasons}")" == "4" ]]
 
 wait_ready_capacity

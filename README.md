@@ -1,5 +1,7 @@
 # Kember
 
+Project site: [openflood.org/kember](https://openflood.org/kember)
+
 Kubernetes-native worker lifecycle control for short-lived container workloads.
 
 Kember keeps a declared pool of warm, single-use worker Pods, assigns one Pod to
@@ -20,8 +22,12 @@ Kember is an early alpha and its API is not stable yet.
 - Kotlin API and TypeScript UI are repository bootstraps
 - No compatibility, Helm, or production-scale guarantees yet
 
-The current API group is `kember.dev/v1alpha1` and may change before the first
+The current API group is `kember.openflood.org/v1alpha1` and may change before the first
 public release.
+
+This alpha uses `kember.openflood.org` as its API group. There is no conversion
+webhook from the earlier `kember.dev` experiment; back up and remove old CRDs
+only when no old resources remain, then apply the current manifests.
 
 ## Alpha support matrix
 
@@ -124,7 +130,7 @@ WARMUP_ITERATIONS=0 ITERATIONS=1 tests/benchmark/trivy-warmlease.sh
 ## Example
 
 ```yaml
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: TaskRun
 metadata:
   name: scan-source

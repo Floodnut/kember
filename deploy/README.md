@@ -3,6 +3,10 @@
 This directory contains the alpha CRDs, RBAC, operator Deployment, and sample
 resources. Helm is not part of the current distribution.
 
+The current API group is `kember.openflood.org`. Older `kember.dev` resources are
+not converted automatically; treat a group change as an alpha migration and
+remove the old CRDs only after their resources have been backed up or retired.
+
 The operator image must already be available to the target cluster. For a kind
 cluster, load it before installation:
 

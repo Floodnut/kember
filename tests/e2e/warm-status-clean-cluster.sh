@@ -85,8 +85,8 @@ if ! kind load docker-image --name "${CLUSTER_NAME}" "${WORKER_IMAGE}"; then
 fi
 
 kubectl apply -f deploy/operator/namespace.yaml
-kubectl apply -f deploy/crd/kember.dev_workerpools.yaml
-kubectl apply -f deploy/crd/kember.dev_taskruns.yaml
+kubectl apply -f deploy/crd/kember.openflood.org_workerpools.yaml
+kubectl apply -f deploy/crd/kember.openflood.org_taskruns.yaml
 kubectl apply -f deploy/rbac/kember-operator.yaml
 kubectl apply -f deploy/operator/operator.yaml
 kubectl -n kember-system rollout restart deployment/kember-operator
@@ -117,7 +117,7 @@ metadata:
   name: status-worker
   namespace: ${NAMESPACE}
 ---
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: WorkerPool
 metadata:
   name: ${POOL}
@@ -168,7 +168,7 @@ wait_pool_progressing "${generation}" 20 0.5
 wait_pool_status "${generation} 2 0 2 0 0 True False False" 120 1
 
 kubectl apply -f - <<EOF
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: TaskRun
 metadata:
   name: status-task

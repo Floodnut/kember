@@ -1,6 +1,6 @@
 // Package v1alpha1 defines Kember's Kubernetes API.
 // +kubebuilder:object:generate=true
-// +groupName=kember.dev
+// +groupName=kember.openflood.org
 package v1alpha1
 
 import (
@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-var GroupVersion = schema.GroupVersion{Group: "kember.dev", Version: "v1alpha1"}
+var GroupVersion = schema.GroupVersion{Group: "kember.openflood.org", Version: "v1alpha1"}
 
 // AddToScheme registers Kember types with a scheme.
 func AddToScheme(scheme *runtime.Scheme) error {

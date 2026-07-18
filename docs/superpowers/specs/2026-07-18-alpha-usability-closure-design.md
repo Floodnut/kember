@@ -162,7 +162,7 @@ Alpha Usability Closure는 Kember의 범위를 넓히지 않는다. WarmLease의
 - `README.md`
 - `deploy/README.md`
 - `deploy/install.sh`
-- `deploy/crd/kember.dev_workerpools.yaml`
-- `deploy/crd/kember.dev_taskruns.yaml`
+- `deploy/crd/kember.openflood.org_workerpools.yaml`
+- `deploy/crd/kember.openflood.org_taskruns.yaml`
 - `apps/kember-operator/controller/taskrun.go`
 - `apps/kember-operator/controller/workerpool.go`

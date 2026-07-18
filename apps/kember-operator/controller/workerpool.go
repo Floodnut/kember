@@ -21,10 +21,10 @@ import (
 )
 
 const (
-	workerPoolLabel           = "kember.dev/workerpool"
-	workerPoolUIDLabel        = "kember.dev/workerpool-uid"
-	workerPoolGenerationLabel = "kember.dev/workerpool-generation"
-	workerTaskRunLabel        = "kember.dev/taskrun-uid"
+	workerPoolLabel           = "kember.openflood.org/workerpool"
+	workerPoolUIDLabel        = "kember.openflood.org/workerpool-uid"
+	workerPoolGenerationLabel = "kember.openflood.org/workerpool-generation"
+	workerTaskRunLabel        = "kember.openflood.org/taskrun-uid"
 	workerContainerName       = "worker"
 )
 

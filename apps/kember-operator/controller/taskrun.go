@@ -283,7 +283,7 @@ func renderArgs(templates []string, taskRun *kemberv1.TaskRun) ([]string, error)
 func jobFor(taskRun *kemberv1.TaskRun) *batchv1.Job {
 	t := taskRun.Status.ResolvedTemplate
 	backoff := int32(0)
-	return &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: jobName(taskRun), Namespace: taskRun.Namespace, Labels: map[string]string{"kember.dev/taskrun-uid": string(taskRun.UID), "kember.dev/workerpool": taskRun.Spec.WorkerPoolRef.Name}}, Spec: batchv1.JobSpec{BackoffLimit: &backoff, ActiveDeadlineSeconds: &t.ActiveDeadlineSeconds, TTLSecondsAfterFinished: &t.TTLSecondsAfterFinished, Template: corePodTemplate(t)}}
+	return &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: jobName(taskRun), Namespace: taskRun.Namespace, Labels: map[string]string{"kember.openflood.org/taskrun-uid": string(taskRun.UID), "kember.openflood.org/workerpool": taskRun.Spec.WorkerPoolRef.Name}}, Spec: batchv1.JobSpec{BackoffLimit: &backoff, ActiveDeadlineSeconds: &t.ActiveDeadlineSeconds, TTLSecondsAfterFinished: &t.TTLSecondsAfterFinished, Template: corePodTemplate(t)}}
 }
 
 func corePodTemplate(t *kemberv1.ResolvedTemplate) corev1.PodTemplateSpec {

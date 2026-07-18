@@ -40,7 +40,7 @@ wait_ready_capacity() {
   local generation ready
   generation="$(kubectl -n "${NAMESPACE}" get workerpool "${POOL}" -o jsonpath='{.metadata.generation}')"
   for _ in $(seq 1 900); do
-    ready="$(kubectl -n "${NAMESPACE}" get pods -l "kember.dev/workerpool=${POOL},kember.dev/workerpool-generation=${generation},!kember.dev/taskrun-uid" --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' | awk '$1 == "True" {count++} END {print count+0}')"
+    ready="$(kubectl -n "${NAMESPACE}" get pods -l "kember.openflood.org/workerpool=${POOL},kember.openflood.org/workerpool-generation=${generation},!kember.openflood.org/taskrun-uid" --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' | awk '$1 == "True" {count++} END {print count+0}')"
     if [[ "${ready}" == "${wanted}" ]]; then
       return 0
     fi
@@ -83,11 +83,11 @@ scenario, concurrency = sys.argv[1], int(sys.argv[2])
 items = []
 for index in range(1, concurrency + 1):
     items.append({
-        "apiVersion": "kember.dev/v1alpha1",
+        "apiVersion": "kember.openflood.org/v1alpha1",
         "kind": "TaskRun",
         "metadata": {
             "name": f"{scenario}-{index:02d}",
-            "labels": {"kember.dev/benchmark-scenario": scenario},
+            "labels": {"kember.openflood.org/benchmark-scenario": scenario},
         },
         "spec": {
             "workerPoolRef": {"name": "checkov-warm"},
@@ -107,11 +107,11 @@ import sys
 
 scenario, index = sys.argv[1], int(sys.argv[2])
 print(json.dumps({
-    "apiVersion": "kember.dev/v1alpha1",
+    "apiVersion": "kember.openflood.org/v1alpha1",
     "kind": "TaskRun",
     "metadata": {
         "name": f"{scenario}-{index:02d}",
-        "labels": {"kember.dev/benchmark-scenario": scenario},
+        "labels": {"kember.openflood.org/benchmark-scenario": scenario},
     },
     "spec": {
         "workerPoolRef": {"name": "checkov-warm"},
@@ -131,7 +131,7 @@ wait_burst() {
   local concurrency="$2"
   local phases total terminal
   for _ in $(seq 1 3600); do
-    phases="$(kubectl -n "${NAMESPACE}" get taskruns -l "kember.dev/benchmark-scenario=${scenario}" -o jsonpath='{range .items[*]}{.status.phase}{"\n"}{end}' 2>/dev/null || true)"
+    phases="$(kubectl -n "${NAMESPACE}" get taskruns -l "kember.openflood.org/benchmark-scenario=${scenario}" -o jsonpath='{range .items[*]}{.status.phase}{"\n"}{end}' 2>/dev/null || true)"
     total="$(awk 'NF {count++} END {print count+0}' <<<"${phases}")"
     terminal="$(awk '$1 ~ /^(Succeeded|Failed|TimedOut|Rejected|Cancelled)$/ {count++} END {print count+0}' <<<"${phases}")"
     if [[ "${total}" == "${concurrency}" && "${terminal}" == "${concurrency}" ]]; then
@@ -151,7 +151,7 @@ record_burst() {
   local scenario="$5"
   local makespan="$6"
   local snapshot="${OUTPUT_DIR}/${scenario}.json"
-  kubectl -n "${NAMESPACE}" get taskruns -l "kember.dev/benchmark-scenario=${scenario}" -o json > "${snapshot}"
+  kubectl -n "${NAMESPACE}" get taskruns -l "kember.openflood.org/benchmark-scenario=${scenario}" -o json > "${snapshot}"
   python3 - "${snapshot}" "${TASK_RESULTS}" "${BURST_RESULTS}" "${pool_size}" "${concurrency}" "${arrival_interval}" "${repetition}" "${makespan}" <<'PY'
 import csv
 import datetime
@@ -243,8 +243,8 @@ CHECKOV_IMAGE="bridgecrew/checkov@${NODE_DIGEST}"
 docker exec "${NODE}" ctr -n k8s.io images tag "docker.io/${CHECKOV_TAG}" "docker.io/${CHECKOV_IMAGE}" >/dev/null 2>&1 || true
 
 kubectl apply -f deploy/operator/namespace.yaml >/dev/null
-kubectl apply -f deploy/crd/kember.dev_workerpools.yaml >/dev/null
-kubectl apply -f deploy/crd/kember.dev_taskruns.yaml >/dev/null
+kubectl apply -f deploy/crd/kember.openflood.org_workerpools.yaml >/dev/null
+kubectl apply -f deploy/crd/kember.openflood.org_taskruns.yaml >/dev/null
 kubectl apply -f deploy/rbac/kember-operator.yaml >/dev/null
 kubectl apply -f deploy/operator/operator.yaml >/dev/null
 kubectl -n kember-system rollout restart deployment/kember-operator >/dev/null
@@ -263,7 +263,7 @@ metadata:
   name: benchmark-worker
   namespace: ${NAMESPACE}
 ---
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: WorkerPool
 metadata:
   name: ${POOL}

@@ -40,7 +40,7 @@ load_image() {
 wait_unassigned_ready_worker() {
   local ready="0"
   for _ in $(seq 1 900); do
-    ready="$(kubectl -n "${NAMESPACE}" get pods -l "kember.dev/workerpool=${WORKLOAD_NAME}-warm,!kember.dev/taskrun-uid" --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' | awk '$1 == "True" {count++} END {print count+0}')"
+    ready="$(kubectl -n "${NAMESPACE}" get pods -l "kember.openflood.org/workerpool=${WORKLOAD_NAME}-warm,!kember.openflood.org/taskrun-uid" --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' | awk '$1 == "True" {count++} END {print count+0}')"
     if [[ "${ready}" -ge 1 ]]; then
       return 0
     fi
@@ -146,7 +146,7 @@ run_taskrun() {
   fi
   start="$(now_ms)"
   kubectl -n "${NAMESPACE}" create -f - >/dev/null <<EOF
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: TaskRun
 metadata:
   name: ${name}
@@ -225,8 +225,8 @@ fi
 SOURCE_DIGEST="$(docker image inspect "${WORKLOAD_IMAGE_TAG}" --format '{{index .RepoDigests 0}}')"
 
 kubectl apply -f deploy/operator/namespace.yaml >/dev/null
-kubectl apply -f deploy/crd/kember.dev_workerpools.yaml >/dev/null
-kubectl apply -f deploy/crd/kember.dev_taskruns.yaml >/dev/null
+kubectl apply -f deploy/crd/kember.openflood.org_workerpools.yaml >/dev/null
+kubectl apply -f deploy/crd/kember.openflood.org_taskruns.yaml >/dev/null
 kubectl apply -f deploy/rbac/kember-operator.yaml >/dev/null
 kubectl apply -f deploy/operator/operator.yaml >/dev/null
 kubectl -n kember-system rollout restart deployment/kember-operator >/dev/null
@@ -245,7 +245,7 @@ metadata:
   name: benchmark-worker
   namespace: ${NAMESPACE}
 ---
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: WorkerPool
 metadata:
   name: ${WORKLOAD_NAME}-job
@@ -271,7 +271,7 @@ spec:
     timeoutSeconds: 120
     retentionSeconds: 600
 ---
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: WorkerPool
 metadata:
   name: ${WORKLOAD_NAME}-warm

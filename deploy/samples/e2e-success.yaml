@@ -9,7 +9,7 @@ metadata:
   name: e2e-worker
   namespace: kember-e2e
 ---
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: WorkerPool
 metadata:
   name: echo
@@ -36,7 +36,7 @@ spec:
     timeoutSeconds: 60
     retentionSeconds: 60
 ---
-apiVersion: kember.dev/v1alpha1
+apiVersion: kember.openflood.org/v1alpha1
 kind: TaskRun
 metadata:
   name: echo

@@ -10,25 +10,25 @@ METRICS_PORT="${METRICS_PORT:-18080}"
 wait_task_phase() {
 	local namespace="$1" name="$2" expected="$3" phase=""
 	for _ in $(seq 1 120); do
-		phase="$(kubectl -n "${namespace}" get taskrun "${name}" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
+		phase="$(kubectl -n "${namespace}" get taskruns.kember.openflood.org "${name}" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
 		if [[ "${phase}" == "${expected}" ]]; then
 			return 0
 		fi
 		if [[ "${phase}" == "Failed" || "${phase}" == "TimedOut" || "${phase}" == "Rejected" || "${phase}" == "Cancelled" ]]; then
-			kubectl -n "${namespace}" get taskrun "${name}" -o yaml >&2
+			kubectl -n "${namespace}" get taskruns.kember.openflood.org "${name}" -o yaml >&2
 			return 1
 		fi
 		sleep 1
 	done
 	echo "TaskRun ${namespace}/${name} did not become ${expected}: ${phase}" >&2
-	kubectl -n "${namespace}" get taskrun "${name}" -o yaml >&2 || true
+	kubectl -n "${namespace}" get taskruns.kember.openflood.org "${name}" -o yaml >&2 || true
 	return 1
 }
 
 wait_warm_ready() {
 	local ready=""
 	for _ in $(seq 1 120); do
-		ready="$(kubectl -n kember-warm-e2e get pods -l kember.dev/workerpool=echo-warm --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' 2>/dev/null | awk '$1 == "True" {count++} END {print count+0}')"
+		ready="$(kubectl -n kember-warm-e2e get pods -l kember.openflood.org/workerpool=echo-warm --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' 2>/dev/null | awk '$1 == "True" {count++} END {print count+0}')"
 		if [[ "${ready}" == "2" ]]; then
 			return 0
 		fi
@@ -42,14 +42,14 @@ wait_warm_ready() {
 wait_warm_status_ready() {
 	local status=""
 	for _ in $(seq 1 120); do
-		status="$(kubectl -n kember-warm-e2e get workerpool echo-warm -o jsonpath='{.status.capacity.desired} {.status.capacity.ready} {.status.capacity.leased} {.status.conditions[?(@.type=="Ready")].status} {.status.conditions[?(@.type=="Progressing")].status} {.status.conditions[?(@.type=="Degraded")].status}' 2>/dev/null || true)"
+		status="$(kubectl -n kember-warm-e2e get workerpools.kember.openflood.org echo-warm -o jsonpath='{.status.capacity.desired} {.status.capacity.ready} {.status.capacity.leased} {.status.conditions[?(@.type=="Ready")].status} {.status.conditions[?(@.type=="Progressing")].status} {.status.conditions[?(@.type=="Degraded")].status}' 2>/dev/null || true)"
 		if [[ "${status}" == "2 2 0 True False False" ]]; then
 			return 0
 		fi
 		sleep 1
 	done
 	echo "WarmLease status did not converge: ${status}" >&2
-	kubectl -n kember-warm-e2e get workerpool echo-warm -o yaml >&2 || true
+	kubectl -n kember-warm-e2e get workerpools.kember.openflood.org echo-warm -o yaml >&2 || true
 	return 1
 }
 
@@ -72,18 +72,20 @@ kind load docker-image --name "${CLUSTER_NAME}" "${OPERATOR_IMAGE}"
 kind load docker-image --name "${CLUSTER_NAME}" "${WORKER_IMAGE}"
 
 KEMBER_OPERATOR_IMAGE="${OPERATOR_IMAGE}" ./deploy/install.sh
-kubectl wait --for=condition=Established crd/workerpools.kember.dev crd/taskruns.kember.dev --timeout=60s
+kubectl -n kember-system rollout restart deployment/kember-operator
+kubectl -n kember-system rollout status deployment/kember-operator --timeout=120s
+kubectl wait --for=condition=Established crd/workerpools.kember.openflood.org crd/taskruns.kember.openflood.org --timeout=60s
 
 kubectl apply -f deploy/samples/e2e-success.yaml
 wait_task_phase kember-e2e echo Succeeded
 
-kubectl apply -l kember.dev/e2e-stage=pool -f deploy/samples/e2e-warm-single-use.yaml
+kubectl apply -l kember.openflood.org/e2e-stage=pool -f deploy/samples/e2e-warm-single-use.yaml
 wait_warm_ready
 wait_warm_status_ready
-kubectl apply -l kember.dev/e2e-stage=task -f deploy/samples/e2e-warm-single-use.yaml
+kubectl apply -l kember.openflood.org/e2e-stage=task -f deploy/samples/e2e-warm-single-use.yaml
 wait_task_phase kember-warm-e2e echo-warm Succeeded
 
-used_worker="$(kubectl -n kember-warm-e2e get taskrun echo-warm -o jsonpath='{.status.workerRef.name}')"
+used_worker="$(kubectl -n kember-warm-e2e get taskruns.kember.openflood.org echo-warm -o jsonpath='{.status.workerRef.name}')"
 [[ -n "${used_worker}" ]]
 kubectl -n kember-warm-e2e wait --for=delete "pod/${used_worker}" --timeout=60s
 wait_warm_ready
@@ -108,6 +110,6 @@ for metric in \
 	grep -q "^${metric}" /tmp/kember-alpha-metrics.txt
 done
 
-kubectl -n kember-e2e get taskrun echo -o wide
-kubectl -n kember-warm-e2e get workerpool/echo-warm taskrun/echo-warm -o wide
+kubectl -n kember-e2e get taskruns.kember.openflood.org echo -o wide
+kubectl -n kember-warm-e2e get workerpools.kember.openflood.org/echo-warm taskrun/echo-warm -o wide
 echo "alpha install smoke passed"
