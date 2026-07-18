@@ -1,7 +1,24 @@
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
+
+kt_jvm_library(
+    name = "api_core",
+    srcs = glob(["src/main/kotlin/**/*.kt"]),
+    visibility = ["//visibility:private"],
+)
 
 kt_jvm_binary(
     name = "kember-api",
-    srcs = glob(["src/main/kotlin/**/*.kt"]),
+    srcs = [],
     main_class = "dev.kember.api.MainKt",
+    runtime_deps = [":api_core"],
+)
+
+kt_jvm_test(
+    name = "namespace_policy_test",
+    srcs = ["src/test/kotlin/dev/kember/api/policy/NamespaceAccessPolicyTest.kt"],
+    test_class = "dev.kember.api.policy.NamespaceAccessPolicyTest",
+    deps = [
+        ":api_core",
+        "@kember_maven//:junit_junit",
+    ],
 )
