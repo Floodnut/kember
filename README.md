@@ -19,7 +19,7 @@ Kember is an early alpha and its API is not stable yet.
 - Go operator with `WorkerPool` and `TaskRun` CRDs
 - Job and WarmLease execution paths
 - RBAC, lifecycle metrics, unit tests, and kind-based E2E scenarios
-- Kotlin API and TypeScript UI are repository bootstraps
+- Namespace-scoped, read-only Kotlin API; TypeScript UI remains a bootstrap
 - No compatibility, Helm, or production-scale guarantees yet
 
 The current API group is `kember.openflood.org/v1alpha1` and may change before the first
@@ -110,6 +110,35 @@ The alpha metric families are `kember_workerpool_ready_workers`,
 `kember_workerpool_leased_workers`, `kember_taskrun_active_duration_seconds`,
 `kember_taskrun_total`, `kember_worker_termination_requests_total`, and
 `kember_taskrun_assignment_wait_seconds`.
+
+## Read-only API
+
+The Kotlin API exposes the current `WorkerPool` and `TaskRun` projections for
+one configured namespace. Resource identity always includes `cluster`,
+`namespace`, and `name`; the alpha cluster identifier is `local`.
+
+```text
+GET /healthz
+GET /api/v1/namespaces
+GET /api/v1/namespaces/{namespace}/worker-pools
+GET /api/v1/namespaces/{namespace}/worker-pools/{name}
+GET /api/v1/namespaces/{namespace}/task-runs
+GET /api/v1/namespaces/{namespace}/task-runs/{name}
+```
+
+Build the API with Bazel:
+
+```bash
+bazel build //apps/kember-api:kember-api
+bazel test //apps/kember-api:all
+```
+
+`KEMBER_NAMESPACE` is required and `KEMBER_API_PORT` defaults to `8080`. The
+plain manifests in `deploy/api` use `kember-system` and the API ServiceAccount
+has only `get` and `list` on Kember resources in that namespace. To select
+another namespace, change both the environment value and the namespaced
+Role/RoleBinding placement. Multi-namespace and multi-cluster reads are not
+implemented in the alpha.
 
 Run the kind-based lifecycle scenarios:
 

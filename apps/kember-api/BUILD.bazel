@@ -1,4 +1,4 @@
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library", "kt_jvm_test")
 
 kt_jvm_library(
     name = "api_core",
@@ -14,9 +14,8 @@ kt_jvm_library(
     visibility = ["//visibility:private"],
 )
 
-kt_jvm_binary(
+java_binary(
     name = "kember-api",
-    srcs = [],
     main_class = "dev.kember.api.MainKt",
     runtime_deps = [":api_core"],
 )
