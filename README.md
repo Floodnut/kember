@@ -1,40 +1,46 @@
 # Kember
 
-Kember는 Kubernetes에서 미리 준비한 Pod를 task에 독점 배정하고, 한 번 실행한 worker를 폐기·보충하는 warm single-use worker pool Operator입니다.
+Kubernetes-native worker lifecycle control for short-lived container workloads.
 
-현재 alpha 구현은 두 execution path를 지원합니다.
+Kember keeps a declared pool of warm, single-use worker Pods, assigns one Pod to
+each `TaskRun`, executes the image command, and replaces the Pod after terminal
+completion. It also supports a conventional Job-per-task execution path.
 
-- `job`: `TaskRun`마다 Kubernetes Job을 생성한다.
-- `exec` + `warmLease`: Ready worker Pod를 Lease로 배정하고 command를 실행한 뒤 해당 Pod를 교체한다.
+Kember is a small control-plane layer. It does not replace the Kubernetes
+scheduler, Jobs, or autoscalers; it makes worker preparation, assignment,
+timeouts, terminal state, and capacity observable and declarative.
 
-Kember는 Kubernetes Job, scheduler 또는 autoscaler를 대체하지 않습니다. Worker template, 입력 허용 범위, timeout, terminal state와 warm capacity lifecycle을 Kubernetes CRD로 선언하고 조정하는 좁은 control plane입니다.
+## Status
 
-## 현재 상태
+Kember is an early alpha and its API is not stable yet.
 
-- 구현됨: Go Operator, `WorkerPool`/`TaskRun` CRD, RBAC, Job lifecycle, WarmLease single-use lifecycle, E2E와 benchmark harness
-- 골격만 존재: Kotlin control API와 TypeScript UI
-- 아직 없음: 안정 API, Helm chart, multi-node 검증, reusable application process, plugin adapter
+- Go operator with `WorkerPool` and `TaskRun` CRDs
+- Job and WarmLease execution paths
+- RBAC, lifecycle metrics, unit tests, and kind-based E2E scenarios
+- Kotlin API and TypeScript UI are repository bootstraps
+- No compatibility, Helm, or production-scale guarantees yet
 
-API는 `kember.dev/v1alpha1` alpha group을 사용합니다. `kember.dev` 소유권이 확정되지 않으면 public release 전에 소유한 domain 기반 group으로 변경합니다.
+The current API group is `kember.dev/v1alpha1` and may change before the first
+public release.
 
-## Repository
+## Repository layout
 
 ```text
-apps/kember-operator  Go Kubernetes Operator
+apps/kember-operator  Go Kubernetes operator
 apps/kember-api       Kotlin control API bootstrap
 apps/kember-ui        TypeScript UI bootstrap
-packages              공유 contract
-deploy                CRD, RBAC, Operator와 sample manifest
-tests                 E2E와 benchmark harness
-tools                 Bazel toolchain 설정
+packages              Shared contracts
+deploy                CRDs, RBAC, operator, and samples
+tests                 E2E and benchmark harnesses
+tools                 Bazel toolchain configuration
 ```
 
-## 요구 환경
+## Requirements
 
-- Go 1.25 이상
+- Go 1.25+
+- Java 17+
 - Bazel 9.1.0
-- Java 17 이상
-- Docker, kind, kubectl
+- Docker, kind, and kubectl
 
 ## Build and test
 
@@ -43,7 +49,7 @@ go test ./...
 bazel test //...
 ```
 
-WarmLease E2E는 `kember-e2e` kind cluster를 사용합니다.
+Run the kind-based lifecycle scenarios:
 
 ```bash
 kind create cluster --name kember-e2e
@@ -52,20 +58,14 @@ tests/e2e/warm-concurrent-failures.sh
 tests/e2e/warm-status-clean-cluster.sh
 ```
 
-E2E harness는 Operator와 fixture image를 빌드해 cluster에 적재하고, `kember.dev` CRD와 `kember-system` namespace를 적용합니다.
-
-측정 계약만 확인할 때는 kind cluster에서 warm-up 없이 각 mode를 한 번씩 실행할 수 있습니다. 이 smoke는 TaskRun status와 harness 시간을 비교하고, operator `/metrics`의 lifecycle metric family도 확인합니다.
+The benchmark harness includes one-shot Checkov and Trivy smoke commands:
 
 ```bash
 WARMUP_ITERATIONS=0 ITERATIONS=1 tests/benchmark/checkov-warmlease.sh
 WARMUP_ITERATIONS=0 ITERATIONS=1 tests/benchmark/trivy-warmlease.sh
 ```
 
-전체 성능 결론은 1회 smoke가 아니라 `docs/benchmarks`의 반복 benchmark 결과와 arrival/capacity 실증을 기준으로 합니다.
-
-## Kubernetes API
-
-`WorkerPool`은 platform owner가 관리하는 실행·보안·capacity template이고, `TaskRun`은 해당 template으로 한 번 실행할 것을 요청하는 namespaced resource입니다.
+## Example
 
 ```yaml
 apiVersion: kember.dev/v1alpha1
@@ -80,4 +80,14 @@ spec:
   timeoutSeconds: 60
 ```
 
-전체 예시는 `deploy/samples`에서 확인할 수 있습니다.
+See [`deploy/samples`](deploy/samples) for the corresponding `WorkerPool` and
+additional manifests.
+
+## Contributing
+
+Issues and focused pull requests are welcome. Please include a reproducible
+test or scenario for lifecycle behavior changes.
+
+## License
+
+License terms have not been finalized yet.
