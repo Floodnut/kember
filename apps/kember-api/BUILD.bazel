@@ -22,3 +22,14 @@ kt_jvm_test(
         "@kember_maven//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "query_service_test",
+    srcs = ["src/test/kotlin/dev/kember/api/service/KemberQueryServiceTest.kt"],
+    test_class = "dev.kember.api.service.KemberQueryServiceTest",
+    deps = [
+        ":api_core",
+        "@kember_maven//:junit_junit",
+        "@kember_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
+    ],
+)

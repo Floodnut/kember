@@ -29,6 +29,7 @@ maven.install(
         "io.ktor:ktor-server-netty-jvm:3.5.1",
         "io.ktor:ktor-server-test-host-jvm:3.5.1",
         "junit:junit:4.13.2",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.2",
     ],
     fetch_sources = True,
     repositories = ["https://repo.maven.apache.org/maven2"],
