@@ -62,6 +62,7 @@ func TestPolicyContractKeepsStableWireSurface(t *testing.T) {
 		`WorkerPoolSnapshot worker_pool = 6;`,
 		`TaskRunSnapshot task_run = 7;`,
 		`string image_digest = 8;`,
+		`string cluster = 9;`,
 		`PolicyDecisionValue decision = 1;`,
 		`string reason_code = 2;`,
 		`string reason = 3;`,

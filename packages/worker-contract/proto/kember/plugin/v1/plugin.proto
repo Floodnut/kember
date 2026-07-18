@@ -21,6 +21,7 @@ message PolicyRequest {
   WorkerPoolSnapshot worker_pool = 6;
   TaskRunSnapshot task_run = 7;
   string image_digest = 8;
+  string cluster = 9;
 }
 
 message WorkerPoolSnapshot {
