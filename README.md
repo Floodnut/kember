@@ -19,15 +19,12 @@ Kember is an early alpha and its API is not stable yet.
 - Go operator with `WorkerPool` and `TaskRun` CRDs
 - Job and WarmLease execution paths
 - RBAC, lifecycle metrics, unit tests, and kind-based E2E scenarios
-- Namespace-scoped, read-only Kotlin API; TypeScript UI remains a bootstrap
+- Namespace-scoped, read-only Kotlin API and TypeScript dashboard
 - No compatibility, Helm, or production-scale guarantees yet
 
-The current API group is `kember.openflood.org/v1alpha1` and may change before the first
-public release.
-
-This alpha uses `kember.openflood.org` as its API group. There is no conversion
-webhook from the earlier `kember.dev` experiment; back up and remove old CRDs
-only when no old resources remain, then apply the current manifests.
+The current API group is `kember.openflood.org/v1alpha1`. There is no
+conversion webhook from the earlier `kember.dev` experiment; treat group changes
+as alpha migrations.
 
 ## Alpha support matrix
 
@@ -67,6 +64,11 @@ tools                 Bazel toolchain configuration
 go test ./...
 bazel test //...
 ```
+
+## Documentation
+
+- [Alpha API](docs/api.md)
+- [Deployment manifests](deploy/README.md)
 
 ## Install on a cluster
 
@@ -111,11 +113,11 @@ The alpha metric families are `kember_workerpool_ready_workers`,
 `kember_taskrun_total`, `kember_worker_termination_requests_total`, and
 `kember_taskrun_assignment_wait_seconds`.
 
-## Read-only API
+## Read-only API and dashboard
 
-The Kotlin API exposes the current `WorkerPool` and `TaskRun` projections for
-one configured namespace. Resource identity always includes `cluster`,
-`namespace`, and `name`; the alpha cluster identifier is `local`.
+The Kotlin API exposes current `WorkerPool` and `TaskRun` projections for one
+configured namespace. It also serves the read-only dashboard from the same
+origin.
 
 ```text
 GET /healthz
@@ -126,29 +128,26 @@ GET /api/v1/namespaces/{namespace}/task-runs
 GET /api/v1/namespaces/{namespace}/task-runs/{name}
 ```
 
-Build the API with Bazel:
+Build the API and dashboard with Bazel:
 
 ```bash
-bazel build //apps/kember-api:kember-api
+bazel build //apps/kember-api:kember-api_deploy.jar //apps/kember-ui:build
 bazel test //apps/kember-api:all
 ```
 
-The API process also serves the read-only dashboard from the same origin. Build
-`//apps/kember-ui:build`, set `KEMBER_UI_DIR` to that `dist` directory, and open
-the port-forwarded Service:
+The plain manifests in `deploy/api` configure `KEMBER_NAMESPACE=kember-system`
+and serve the bundled UI from `/app/ui`. Open the port-forwarded Service:
 
 ```bash
 kubectl -n kember-system port-forward service/kember-api 18081:8080
 open http://127.0.0.1:18081/
 ```
 
-`KEMBER_NAMESPACE` and `KEMBER_UI_DIR` are required, and `KEMBER_API_PORT`
-defaults to `8080`. The
-plain manifests in `deploy/api` use `kember-system` and the API ServiceAccount
-has only `get` and `list` on Kember resources in that namespace. To select
-another namespace, change both the environment value and the namespaced
-Role/RoleBinding placement. Multi-namespace and multi-cluster reads are not
-implemented in the alpha.
+The API ServiceAccount has only `get` and `list` on Kember resources in the
+configured namespace. To select another namespace, change both
+`KEMBER_NAMESPACE` and the namespaced Role/RoleBinding placement. Multi-namespace
+and multi-cluster reads are not implemented in the alpha. See
+[docs/api.md](docs/api.md) for the current alpha API surface.
 
 Run the kind-based lifecycle scenarios:
 

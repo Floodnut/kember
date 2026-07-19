@@ -18,4 +18,5 @@ dist
 # Local agent and design artifacts
 /.claude/
 /.superpowers/
-/docs/
+/docs/*
+!/docs/api.md
