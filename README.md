@@ -196,4 +196,4 @@ test or scenario for lifecycle behavior changes.
 
 ## License
 
-License terms have not been finalized yet.
+Apache License 2.0. See [LICENSE](LICENSE).
