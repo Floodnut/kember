@@ -53,10 +53,23 @@ tools                 Bazel toolchain configuration
 
 ## Requirements
 
-- Go 1.25+
-- Java 17+
-- Bazel 9.1.0
-- Docker, kind, and kubectl
+Kember targets Kubernetes 1.34 in the alpha. The operator is built against the
+Kubernetes v0.34.x Go client family and controller-runtime v0.22.x.
+
+Local builds use Bazel toolchains rather than whatever happens to be installed
+on the host:
+
+| Area | Version |
+|---|---|
+| Bazel | 9.1.0 |
+| Go | 1.25.0 |
+| JVM | Java 17 |
+| Kotlin language/API | 2.2 |
+| Kotlin compiler distribution | provided by `rules_kotlin` 2.4.0 |
+| Node.js for the dashboard | 22.12.0 |
+
+The install and E2E examples assume access to a Kubernetes cluster plus a
+container image builder, `kubectl`, and optionally kind for local smoke tests.
 
 ## Build and test
 
