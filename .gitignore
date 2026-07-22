@@ -20,3 +20,4 @@ dist
 /.superpowers/
 /docs/*
 !/docs/api.md
+!/docs/v0.1-api-contract.md
