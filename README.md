@@ -110,6 +110,23 @@ kubectl -n kember-warm-e2e get workerpool echo-warm -o wide
 kubectl -n kember-warm-e2e get taskrun echo-warm -o wide
 ```
 
+For a more representative command-worker example:
+
+```bash
+kubectl apply -f deploy/samples/validation-worker.yaml
+kubectl -n kember-validation get taskrun validate-pod-manifest -o wide
+VALIDATION_JOB="$(
+  kubectl -n kember-validation get taskrun validate-pod-manifest \
+    -o jsonpath='{.status.jobRef.name}'
+)"
+kubectl -n kember-validation logs "job/${VALIDATION_JOB}"
+```
+
+This sample runs a Python manifest validator through a platform-owned
+`WorkerPool`. It demonstrates `input.ref`, string parameters, input prefix
+policy, and terminal TaskRun state without making Kember own the external data
+plane.
+
 Useful troubleshooting commands:
 
 ```bash
@@ -239,7 +256,8 @@ spec:
 ```
 
 See [`deploy/samples`](deploy/samples) for the corresponding `WorkerPool` and
-additional manifests.
+additional manifests, including a small manifest-validation worker that uses
+`parameters` and `input.ref` together.
 
 `WorkerPool` is platform-owned and defines the image, command, security
 context, input prefix policy, timeout policy, and worker capacity. `TaskRun` is

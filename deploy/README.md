@@ -3,9 +3,9 @@
 This directory contains the alpha CRDs, RBAC, operator and read-only API
 Deployments, and sample resources. Helm is not part of the current distribution.
 
-The current API group is `kember.openflood.org`. Older `kember.dev` resources are
-not converted automatically; treat a group change as an alpha migration and
-remove the old CRDs only after their resources have been backed up or retired.
+The current API group is `kember.openflood.org`. Older experimental resources
+are not converted automatically; treat a group change as an alpha migration and
+remove old CRDs only after their resources have been backed up or retired.
 
 The operator image must already be available to the target cluster. For a kind
 cluster, load it before installation:
@@ -44,6 +44,11 @@ After installation, apply a sample WorkerPool and TaskRun from
 `deploy/samples/`. `kember-platform-admin` is intended to manage WorkerPools;
 `kember-taskrun-developer` is intended to create TaskRuns and patch
 `spec.cancel`.
+
+`deploy/samples/validation-worker.yaml` is the most representative starter
+sample: it runs a small Python manifest validator as a Job-mode worker and shows
+how `input.ref`, `parameters`, prefix policy, and terminal TaskRun state fit
+together.
 
 ## Observe a TaskRun
 
