@@ -12,6 +12,14 @@ Kember is a small control-plane layer. It does not replace the Kubernetes
 scheduler, Jobs, or autoscalers; it makes worker preparation, assignment,
 timeouts, terminal state, and capacity observable and declarative.
 
+Kember is best suited for command-style workers where startup, dependency
+preparation, or per-task lifecycle governance matters. Examples include
+security scanners, validators, analyzers, and other short-lived tools that can
+accept an input reference and return a terminal result.
+
+Kember is not a workflow engine, serverless serving framework, general
+autoscaler, queue broker, or sandbox for arbitrary untrusted images.
+
 ## Status
 
 Kember is an early alpha and its API is not stable yet.
@@ -23,8 +31,8 @@ Kember is an early alpha and its API is not stable yet.
 - No compatibility, Helm, or production-scale guarantees yet
 
 The current API group is `kember.openflood.org/v1alpha1`. There is no
-conversion webhook from the earlier `kember.dev` experiment; treat group changes
-as alpha migrations.
+conversion webhook from older experimental API groups; treat group changes as
+alpha migrations.
 
 ## Alpha support matrix
 
@@ -53,8 +61,8 @@ tools                 Bazel toolchain configuration
 
 ## Requirements
 
-Kember targets Kubernetes 1.34 in the alpha. The operator is built against the
-Kubernetes v0.34.x Go client family and controller-runtime v0.22.x.
+Kember alpha targets Kubernetes 1.34-compatible clusters. The operator is built
+against the Kubernetes v0.34.x Go client family and controller-runtime v0.22.x.
 
 Local builds use Bazel toolchains rather than whatever happens to be installed
 on the host:
@@ -68,8 +76,49 @@ on the host:
 | Kotlin compiler distribution | provided by `rules_kotlin` 2.4.0 |
 | Node.js for the dashboard | 22.12.0 |
 
-The install and E2E examples assume access to a Kubernetes cluster plus a
-container image builder, `kubectl`, and optionally kind for local smoke tests.
+To try Kember on a cluster, you need a current `kubectl` context and a container
+image registry or build pipeline that the cluster can pull from.
+
+## Quickstart
+
+```bash
+export KEMBER_IMAGE=registry.example.com/kember/kember-operator:e2e
+
+go build -o /tmp/kember-operator ./apps/kember-operator
+docker build -f deploy/operator/Dockerfile -t kember-operator:e2e /tmp
+
+docker tag kember-operator:e2e "${KEMBER_IMAGE}"
+docker push "${KEMBER_IMAGE}"
+
+KEMBER_OPERATOR_IMAGE="${KEMBER_IMAGE}" ./deploy/install.sh
+kubectl apply -f deploy/samples/e2e-success.yaml
+kubectl -n kember-e2e get taskrun echo -o wide
+kubectl -n kember-e2e describe taskrun echo
+```
+
+The sample creates a `WorkerPool` and a `TaskRun`. A successful run reaches one
+terminal phase, usually `Succeeded`.
+
+For local-only smoke tests, kind also works if you load the image into the kind
+cluster instead of pushing it to a registry.
+
+For a WarmLease check:
+
+```bash
+kubectl apply -f deploy/samples/e2e-warm-single-use.yaml
+kubectl -n kember-warm-e2e get workerpool echo-warm -o wide
+kubectl -n kember-warm-e2e get taskrun echo-warm -o wide
+```
+
+Useful troubleshooting commands:
+
+```bash
+kubectl -n kember-system get pods
+kubectl -n kember-system logs deployment/kember-operator
+kubectl get crd | grep kember.openflood.org
+kubectl -n kember-e2e get workerpool,taskrun
+kubectl -n kember-e2e describe taskrun echo
+```
 
 ## Build and test
 
@@ -81,6 +130,7 @@ bazel test //...
 ## Documentation
 
 - [Alpha API](docs/api.md)
+- [v0.1 Alpha API Contract](docs/v0.1-api-contract.md)
 - [Deployment manifests](deploy/README.md)
 
 ## Install on a cluster
@@ -89,23 +139,18 @@ The alpha distribution uses plain Kubernetes manifests. Build an operator
 image, make it available to the target cluster, and install the control plane:
 
 ```bash
+export KEMBER_IMAGE=registry.example.com/kember/kember-operator:e2e
+
 go build -o /tmp/kember-operator ./apps/kember-operator
 docker build -f deploy/operator/Dockerfile -t kember-operator:e2e /tmp
-kind load docker-image --name kember-e2e kember-operator:e2e
-KEMBER_OPERATOR_IMAGE=kember-operator:e2e ./deploy/install.sh
+docker tag kember-operator:e2e "${KEMBER_IMAGE}"
+docker push "${KEMBER_IMAGE}"
+KEMBER_OPERATOR_IMAGE="${KEMBER_IMAGE}" ./deploy/install.sh
 ```
 
 The installer applies the namespace, CRDs, RBAC, and operator Deployment to the
-current kubectl context. It does not install a Helm chart or create a tenant
-namespace.
-
-For a quick lifecycle check after installation:
-
-```bash
-kubectl apply -f deploy/samples/e2e-success.yaml
-kubectl -n kember-e2e get taskrun echo -o wide
-kubectl -n kember-e2e describe taskrun echo
-```
+current kubectl context. It does not install a Helm chart, install the read-only
+API, or create tenant namespaces beyond those declared by the sample manifests.
 
 To request cancellation for a non-terminal TaskRun:
 
